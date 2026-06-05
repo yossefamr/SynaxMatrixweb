@@ -850,7 +850,7 @@
     var validDaysRaw = ($("#coupon-valid-days") && $("#coupon-valid-days").value || "").trim();
     var validDays = validDaysRaw ? parseInt(validDaysRaw, 10) : null;
     var validDateRaw = ($("#coupon-valid-date") && $("#coupon-valid-date").value || "").trim();
-    var description = String(($("#coupon-description") && $("#coupon-description").value || "").replace(/[<>]/g, "").trim().slice(0, 200);
+    var description = String(($("#coupon-description") && $("#coupon-description").value) || "").replace(/[<>]/g, "").trim().slice(0, 200);
     var enabled = !!(($("#coupon-enabled") && $("#coupon-enabled").checked));
 
     try {
