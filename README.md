@@ -14,6 +14,11 @@ A fully dynamic, cyber-themed web application built on Firebase with zero card /
 - Mobile-first responsive design (works on phones, tablets, Windows / Mac / Linux)
 - Tilt-effect product cards (disabled on touch devices)
 - Search-engine friendly meta tags + Open Graph ready
+- **🧾 Automated PDF Invoices** generated client-side with jsPDF on order submit
+  - Branded header (SynaxMatrix), unique Invoice ID, customer details, itemized table
+  - Auto-downloads to customer's device + toast link to re-download
+  - Customers can re-download any past invoice from their Account page
+  - Invoice ID stored in the order, summary sent to admin via Telegram
 
 ### 🔐 Authentication & Accounts
 - Email + password sign-up and login
@@ -136,6 +141,7 @@ SynaxMatrixweb/
 ├── main.js             # Storefront logic
 ├── admin.js            # Dashboard logic + diagnostics
 ├── account.js          # Customer panel logic
+├── invoice.js          # jsPDF invoice generator (modular)
 ├── maintenance.js      # Maintenance page polling logic
 ├── status.js           # Status page health-check logic
 ├── robots.txt          # SEO crawler rules

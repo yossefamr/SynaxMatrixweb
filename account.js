@@ -335,7 +335,7 @@
         '<div class="order-card-header">' +
           '<div>' +
             '<div style="font-family: var(--font-display); font-size: 1.05rem; letter-spacing: 1px; margin-bottom: 4px;">' + escapeHtml(o.productTitle) + '</div>' +
-            '<div class="order-id">ORDER #' + escapeHtml(o.id.slice(0, 12).toUpperCase()) + '</div>' +
+            '<div class="order-id">ORDER #' + escapeHtml(o.id.slice(0, 12).toUpperCase()) + (o.invoiceId ? ' · INV ' + escapeHtml(o.invoiceId) : '') + '</div>' +
           '</div>' +
           '<div style="text-align: right;">' +
             '<div class="order-status ' + escapeHtml(status) + '" style="display: inline-flex; align-items: center; gap: 6px;">' +
@@ -347,8 +347,39 @@
         '<div class="order-card-body">' +
           (o.notes ? '<div class="order-field" style="grid-column: 1/-1"><div class="label">Your Notes</div><div class="value">' + escapeHtml(o.notes) + '</div></div>' : "") +
           '<div class="order-field"><div class="label">Placed</div><div class="value">' + formatDate(o.createdAt) + ' <span style="color:var(--text-muted); font-size:0.8rem;">(' + escapeHtml(timeAgo(o.createdAt)) + ')</span></div></div>' +
+        '</div>' +
+        '<div class="order-card-footer">' +
+          '<button class="btn btn-ghost btn-sm" data-download-invoice="' + escapeHtml(o.id) + '">⬇ DOWNLOAD INVOICE</button>' +
         '</div>';
       container.appendChild(card);
+    });
+
+    container.querySelectorAll("[data-download-invoice]").forEach(function (btn) {
+      btn.addEventListener("click", function () {
+        var orderId = btn.dataset.downloadInvoice;
+        var order = orders.find(function (x) { return x.id === orderId; });
+        if (!order) return;
+        if (!window.SynaxInvoice || !window.SynaxInvoice.generate) {
+          showToast("Invoice library not loaded", "error");
+          return;
+        }
+        var invoice = window.SynaxInvoice.generate({
+          id: order.id,
+          invoiceId: order.invoiceId,
+          customerName: currentUser ? (currentUser.displayName || currentUser.email) : (order.customerName || "Customer"),
+          customerEmail: order.customerEmail,
+          customerPhone: order.customerPhone,
+          productTitle: order.productTitle,
+          productPrice: order.productPrice,
+          productCategory: order.productCategory,
+          status: order.status,
+          createdAt: order.createdAt
+        });
+        if (invoice) {
+          window.SynaxInvoice.download(invoice);
+          showToast("Invoice " + (invoice.summary.invoiceId || "") + " downloaded", "success");
+        }
+      });
     });
   }
 

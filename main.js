@@ -658,7 +658,7 @@
     var errBox = document.getElementById("order-error");
     errBox.style.display = "none";
     submitBtn.disabled = true;
-    submitBtn.textContent = "SUBMITTING...";
+    submitBtn.innerHTML = '<span class="btn-spinner"></span> GENERATING INVOICE...';
 
     var name = sanitizeText(document.getElementById("cust-name").value);
     var phone = sanitizeText(document.getElementById("cust-phone").value);
@@ -695,10 +695,14 @@
       return;
     }
 
+    var invoiceId = (window.SynaxInvoice && window.SynaxInvoice.generateId) ? window.SynaxInvoice.generateId() : ("INV-" + Date.now());
+    var productCategory = (currentOrderProduct && currentOrderProduct.category) ? currentOrderProduct.category : null;
+
     var data = {
       productId: currentOrderProduct.id,
       productTitle: currentOrderProduct.title || "Untitled",
       productPrice: currentOrderProduct.price || 0,
+      productCategory: productCategory,
       productImage: currentOrderProduct.imageUrl || null,
       customerName: name,
       customerPhone: phone,
@@ -706,6 +710,7 @@
       customerAddress: address || null,
       notes: notes || null,
       status: "pending",
+      invoiceId: invoiceId,
       userId: currentUser ? currentUser.uid : null,
       userFingerprint: currentFingerprint || null,
       userAgent: navigator.userAgent.slice(0, 200),
@@ -713,10 +718,33 @@
     };
 
     try {
+      var t0 = Date.now();
+      var invoice = (window.SynaxInvoice && window.SynaxInvoice.generate)
+        ? window.SynaxInvoice.generate({ id: "PREVIEW", ...data, createdAt: new Date() })
+        : null;
+      var minDelay = 700;
+      var elapsed = Date.now() - t0;
+      if (elapsed < minDelay) await new Promise(function (r) { setTimeout(r, minDelay - elapsed); });
+
       var ref = await db.collection(COLLECTIONS.ORDERS).add(data);
+
+      if (invoice) {
+        invoice.summary.orderId = ref.id;
+        var regenerated = (window.SynaxInvoice && window.SynaxInvoice.generate)
+          ? window.SynaxInvoice.generate({ id: ref.id, ...data, createdAt: new Date() })
+          : null;
+        if (regenerated) {
+          window.SynaxInvoice.download(regenerated);
+          invoice = regenerated;
+        }
+      }
+
       setCooldown();
-      showToast("Order placed — wait 60s before next", "success", "ORDER #" + ref.id.slice(0, 8).toUpperCase());
-      sendTelegramNotification({ id: ref.id, ...data }).catch(function (e) { console.warn("Telegram failed:", e); });
+      showInvoiceToast(ref.id, invoice, name);
+
+      sendTelegramNotification({ id: ref.id, ...data, invoiceId: invoiceId }).catch(function (e) { console.warn("Telegram failed:", e); });
+      sendTelegramInvoiceSummary({ id: ref.id, ...data }, invoice).catch(function (e) { console.warn("Telegram summary failed:", e); });
+
       document.getElementById("order-form").reset();
       closeModals();
     } catch (err) {
@@ -743,6 +771,7 @@
       "📦 *Product:* " + (order.productTitle || "—"),
       "💰 *Price:* " + formatPrice(order.productPrice),
       "🆔 *Order ID:* `" + (order.id || "—") + "`",
+      "🧾 *Invoice:* `" + (order.invoiceId || "—") + "`",
       "",
       "👤 *Customer Details:*",
       "• Name: " + (order.customerName || "—"),
@@ -755,6 +784,50 @@
     var text = encodeURIComponent(lines.join("\n"));
     var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=Markdown&text=" + text;
     try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* telegram will still send */ }
+  }
+
+  async function sendTelegramInvoiceSummary(order, invoice) {
+    if (!telegramConfig || !telegramConfig.botToken || !telegramConfig.chatId) return;
+    if (telegramConfig.enabled === false) return;
+    if (!invoice || !invoice.summary) return;
+    var s = invoice.summary;
+    var lines = [
+      "🧾 *INVOICE GENERATED*",
+      "",
+      "• Invoice ID: `" + (s.invoiceId || "—") + "`",
+      "• Order ID: `" + (s.orderId || "—") + "`",
+      "• Customer: " + (s.customer || "—"),
+      "• Product: " + (s.product || "—"),
+      "• Total: *" + (s.price || "—") + "*",
+      "• Date: " + (s.date || "—"),
+      "",
+      "PDF auto-downloaded to the customer. Open `SynaxMatrix-" + s.invoiceId + ".pdf` to view."
+    ];
+    var text = encodeURIComponent(lines.join("\n"));
+    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=Markdown&text=" + text;
+    try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* */ }
+  }
+
+  function showInvoiceToast(orderId, invoice, customerName) {
+    var container = document.getElementById("toast-container");
+    if (!container) return;
+    var t = document.createElement("div");
+    t.className = "toast success invoice-toast";
+    var title = "ORDER #" + (orderId || "").slice(0, 8).toUpperCase();
+    var msg = "Order placed successfully. Invoice downloading...";
+    var invoiceId = invoice && invoice.summary ? invoice.summary.invoiceId : null;
+    t.innerHTML =
+      (title ? '<div class="toast-title">' + escapeHtml(title) + '</div>' : "") +
+      '<div class="toast-msg">' + escapeHtml(msg) + '</div>' +
+      (invoiceId ? '<div style="margin-top:8px; font-family: var(--font-mono); font-size: 0.75rem; color: var(--primary);">📄 ' + escapeHtml(invoiceId) + '.pdf</div>' : "") +
+      (invoice && invoice.dataUrl ? '<a href="' + invoice.dataUrl + '" download="' + escapeHtml(invoice.filename) + '" style="display:inline-block; margin-top:10px; padding:6px 12px; background: rgba(0,240,255,0.15); border:1px solid var(--primary); border-radius:6px; color: var(--primary); font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; text-decoration: none;">⬇ DOWNLOAD INVOICE</a>' : '');
+    container.appendChild(t);
+    setTimeout(function () {
+      t.style.opacity = "0";
+      t.style.transform = "translateX(20px)";
+      t.style.transition = "all 0.3s";
+      setTimeout(function () { if (t.parentNode) t.parentNode.removeChild(t); }, 300);
+    }, 10000);
   }
 
   async function sendTelegramAlert(subject, details) {

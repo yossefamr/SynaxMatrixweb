@@ -676,6 +676,20 @@ select {
 .toast.error { border-left-color: var(--danger); }
 .toast-title { font-weight: 700; margin-bottom: 4px; font-size: 0.95rem; }
 .toast-msg { color: var(--text-dim); font-size: 0.85rem; word-break: break-word; }
+.invoice-toast { min-width: 320px; max-width: 420px; border-left-color: var(--primary); border-left-width: 5px; }
+.invoice-toast a:hover { background: rgba(0, 240, 255, 0.25) !important; box-shadow: var(--glow-cyan); }
+
+.btn-spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(0, 16, 20, 0.3);
+  border-top-color: #001014;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
 
 #back-to-top {
   position: fixed;
