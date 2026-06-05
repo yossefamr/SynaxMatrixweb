@@ -277,9 +277,14 @@
               <input type="checkbox" id="tg-enabled" style="width: auto; margin: 0;" checked />
               <label for="tg-enabled" style="margin: 0;">Send notifications on new orders</label>
             </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="tg-alerts-enabled" style="width: auto; margin: 0;" checked />
+              <label for="tg-alerts-enabled" style="margin: 0;">🚨 Send instant security alerts (new products, blocked devices, login lockouts)</label>
+            </div>
             <div style="display: flex; gap: 8px; flex-wrap: wrap;">
               <button type="submit" class="btn btn-primary">SAVE</button>
               <button type="button" class="btn btn-ghost" id="tg-test-btn">SEND TEST</button>
+              <button type="button" class="btn btn-ghost" id="tg-alert-test-btn">🚨 TEST ALERT</button>
             </div>
           </form>
           <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim); line-height: 1.6;">
@@ -290,6 +295,12 @@
             4. Open your bot and press Start<br />
             5. Visit <code style="color:var(--accent)">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> to find your chat_id<br />
             6. Paste the chat_id and save
+          </div>
+          <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim); line-height: 1.6;">
+            <strong style="color: var(--warn);">// 🚨 Instant alerts trigger on:</strong><br />
+            • <strong>New product added</strong> by any admin<br />
+            • <strong>Blocked device</strong> tries to access the site (with fingerprint + UA)<br />
+            • <strong>Login lockout</strong> triggered (5+ failed attempts)
           </div>
         </div>
       </section>

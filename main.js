@@ -72,6 +72,11 @@
       localStorage.setItem(key, String(attempts));
       if (attempts >= (SECURITY.MAX_LOGIN_ATTEMPTS || 5)) {
         localStorage.setItem(lockoutKey, String(now + (SECURITY.LOGIN_LOCKOUT_MS || 60000)));
+        sendTelegramAlert("🔒 LOGIN LOCKOUT TRIGGERED", {
+          "Failed Attempts": String(attempts),
+          "Lockout Duration": (SECURITY.LOGIN_LOCKOUT_MS / 1000) + "s",
+          "Note": "Too many failed login attempts on the storefront."
+        });
       }
     } catch (e) { /* localStorage may be disabled */ }
   }
@@ -262,6 +267,11 @@
     var blocked = await checkBan();
     if (blocked.has(fp)) {
       var params = new URLSearchParams({ id: fp });
+      sendTelegramAlert("🚫 BLOCKED DEVICE TRIED TO ACCESS", {
+        "Fingerprint": fp.slice(0, 32) + "...",
+        "Page": window.location.pathname,
+        "User Agent": navigator.userAgent.slice(0, 100)
+      });
       window.location.replace("404.html?" + params.toString());
       return false;
     }
@@ -742,6 +752,25 @@
     if (order.customerAddress) lines.push("• Address: " + order.customerAddress);
     if (order.notes) lines.push("• Notes: " + order.notes);
     lines.push("", "⏰ " + new Date().toLocaleString());
+    var text = encodeURIComponent(lines.join("\n"));
+    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=Markdown&text=" + text;
+    try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* telegram will still send */ }
+  }
+
+  async function sendTelegramAlert(subject, details) {
+    if (SECURITY.ALERTS_ENABLED === false) return;
+    try { if (!telegramConfig) await loadTelegramConfig(); } catch (e) { return; }
+    if (!telegramConfig || !telegramConfig.botToken || !telegramConfig.chatId) return;
+    if (telegramConfig.alertsEnabled === false) return;
+
+    var lines = ["🚨 *" + subject + "*", ""];
+    if (details) {
+      Object.keys(details).forEach(function (k) {
+        lines.push("• " + k + ": " + details[k]);
+      });
+    }
+    lines.push("", "⏰ " + new Date().toLocaleString());
+
     var text = encodeURIComponent(lines.join("\n"));
     var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=Markdown&text=" + text;
     try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* telegram will still send */ }

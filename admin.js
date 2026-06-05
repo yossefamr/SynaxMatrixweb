@@ -16,6 +16,7 @@
   var currentOrders = [];
   var adminEmailsCache = [];
   var loginAttempts = 0;
+  var telegramConfigCache = null;
 
   function isAdminEmail(email) {
     if (!email) return false;
@@ -594,6 +595,12 @@
         payload.createdBy = currentUser ? currentUser.email : null;
         await db.collection(COLLECTIONS.PRODUCTS).add(payload);
         showToast("Product added to catalog", "success", "DEPLOYED");
+        sendTelegramAlert("🆕 NEW PRODUCT ADDED", {
+          "Title": title,
+          "Price": formatPrice(price),
+          "Category": category || "—",
+          "By": currentUser ? currentUser.email : "unknown"
+        });
       }
       resetProductForm();
       closeModals();
@@ -750,9 +757,12 @@
       var doc = await db.collection(COLLECTIONS.CONFIG).doc("telegram").get();
       if (doc.exists) {
         var data = doc.data();
+        telegramConfigCache = data;
         $("#tg-token").value = data.botToken || "";
         $("#tg-chat").value = data.chatId || "";
         $("#tg-enabled").checked = data.enabled !== false;
+        var alertsEl = $("#tg-alerts-enabled");
+        if (alertsEl) alertsEl.checked = data.alertsEnabled !== false;
         updateTelegramStatus(true, !!(data.botToken && data.chatId));
       } else { updateTelegramStatus(true, false); }
     } catch (e) { updateTelegramStatus(false, false); }
@@ -778,13 +788,15 @@
     var botToken = $("#tg-token").value.trim();
     var chatId = $("#tg-chat").value.trim();
     var enabled = $("#tg-enabled").checked;
+    var alertsEnabled = $("#tg-alerts-enabled") ? $("#tg-alerts-enabled").checked : true;
     try {
       await db.collection(COLLECTIONS.CONFIG).doc("telegram").set({
-        botToken: botToken, chatId: chatId, enabled: enabled,
+        botToken: botToken, chatId: chatId, enabled: enabled, alertsEnabled: alertsEnabled,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedBy: currentUser ? currentUser.email : null
       }, { merge: true });
-      logAdminEvent("telegram_config_update", "enabled=" + enabled);
+      telegramConfigCache = { botToken: botToken, chatId: chatId, enabled: enabled, alertsEnabled: alertsEnabled };
+      logAdminEvent("telegram_config_update", "enabled=" + enabled + " alerts=" + alertsEnabled);
       showToast("Telegram config saved", "success");
       updateTelegramStatus(true, botToken && chatId);
     } catch (err) { showToast("Save failed: " + err.message, "error"); }
@@ -800,6 +812,39 @@
       var res = await fetch(url);
       var data = await res.json();
       if (data.ok) showToast("Test message sent!", "success");
+      else showToast("Telegram error: " + (data.description || "unknown"), "error");
+    } catch (e) { showToast("Network error: " + e.message, "error"); }
+  }
+
+  async function sendTelegramAlert(subject, details) {
+    if (!telegramConfigCache) await loadTelegramConfig();
+    if (!telegramConfigCache || !telegramConfigCache.botToken || !telegramConfigCache.chatId) return;
+    if (telegramConfigCache.alertsEnabled === false) return;
+
+    var lines = ["🚨 *" + subject + "*", ""];
+    if (details) {
+      Object.keys(details).forEach(function (k) {
+        lines.push("• " + k + ": " + details[k]);
+      });
+    }
+    lines.push("", "⏰ " + new Date().toLocaleString());
+
+    var text = encodeURIComponent(lines.join("\n"));
+    var url = "https://api.telegram.org/bot" + telegramConfigCache.botToken + "/sendMessage?chat_id=" + telegramConfigCache.chatId + "&parse_mode=Markdown&text=" + text;
+    try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* */ }
+  }
+
+  async function testAlert() {
+    var botToken = $("#tg-token").value.trim();
+    var chatId = $("#tg-chat").value.trim();
+    if (!botToken || !chatId) { showToast("Please fill in token and chat ID first", "error"); return; }
+    showToast("Sending test alert...", "info");
+    var text = encodeURIComponent("🚨 *TEST ALERT*\n\nIf you can read this in Telegram, security alerts are working.");
+    var url = "https://api.telegram.org/bot" + botToken + "/sendMessage?chat_id=" + chatId + "&parse_mode=Markdown&text=" + text;
+    try {
+      var res = await fetch(url);
+      var data = await res.json();
+      if (data.ok) showToast("Test alert sent! Check Telegram.", "success");
       else showToast("Telegram error: " + (data.description || "unknown"), "error");
     } catch (e) { showToast("Network error: " + e.message, "error"); }
   }
@@ -987,6 +1032,8 @@
     $("#block-form").addEventListener("submit", blockDevice);
     $("#telegram-form").addEventListener("submit", saveTelegramConfig);
     $("#tg-test-btn").addEventListener("click", testTelegram);
+    var tgAlertTestBtn = $("#tg-alert-test-btn");
+    if (tgAlertTestBtn) tgAlertTestBtn.addEventListener("click", testAlert);
     var maintForm = $("#maintenance-form");
     if (maintForm) maintForm.addEventListener("submit", saveMaintenanceConfig);
 

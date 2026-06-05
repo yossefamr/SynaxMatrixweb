@@ -98,6 +98,14 @@ Hidden from public — only visible when an admin account is signed in.
 - Bot token & chat ID stored in Firestore (not in client code)
 - Test button to verify bot connectivity
 
+### 🚨 Instant Security Alerts (Telegram)
+- **🆕 New product added** by any admin → instant Telegram alert with title, price, category, who added it
+- **🚫 Blocked device tries to access** → instant alert with fingerprint, page, user agent
+- **🔒 Login lockout triggered** (5+ failed attempts) → instant alert with attempt count
+- All alerts use the same bot configured for orders (no extra setup)
+- Toggle "Send instant security alerts" in admin → Telegram tab
+- "Test Alert" button in admin panel to verify alerts are working
+
 ---
 
 ## 🛠️ Tech Stack
