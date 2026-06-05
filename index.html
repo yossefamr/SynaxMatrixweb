@@ -199,6 +199,16 @@
           <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Optional: only fill this if you've already paid. Otherwise we'll contact you to confirm payment via the selected method.</div>
         </div>
 
+        <div class="form-group" style="margin-top: 24px;">
+          <label for="coupon-input">🎟️ Coupon Code <span style="color:var(--text-muted); font-weight: 400;">(optional)</span></label>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="coupon-input" maxlength="32" placeholder="Have a code? Enter it here" autocomplete="off" style="text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 1px; flex: 1;" />
+            <button type="button" class="btn btn-ghost btn-sm" id="coupon-apply-btn" style="white-space: nowrap;">APPLY</button>
+            <button type="button" class="btn btn-ghost btn-sm" id="coupon-remove-btn" style="white-space: nowrap; display:none;">REMOVE</button>
+          </div>
+          <div id="coupon-feedback" style="font-size: 0.8rem; margin-top: 6px; min-height: 1.2em;"></div>
+        </div>
+
         <div class="honeypot" aria-hidden="true">
           <label for="website">Website (leave blank)</label>
           <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />

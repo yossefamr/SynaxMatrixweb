@@ -102,6 +102,9 @@
       <div class="nav-item" data-tab="payments">
         <span class="icon">&#128179;</span> Payments
       </div>
+      <div class="nav-item" data-tab="coupons">
+        <span class="icon">&#127903;</span> Coupons
+      </div>
       <div class="sidebar-footer">
         <div class="user-badge">
           <div class="avatar" id="user-avatar">A</div>
@@ -434,6 +437,50 @@
           </p>
         </div>
       </section>
+
+      <section id="tab-coupons" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">DISCOUNT <span class="accent">COUPONS</span></h1>
+          <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <button class="btn btn-ghost" id="seed-coupons-btn">🌱 SEED DEFAULTS</button>
+            <button class="btn btn-primary" id="add-coupon-btn">+ NEW COUPON</button>
+          </div>
+        </div>
+
+        <div id="coupons-status" class="config-status connected" style="margin-bottom: 20px;">
+          <span class="dot"></span>
+          <span>Loading coupons...</span>
+        </div>
+
+        <div class="table-wrap">
+          <table id="coupons-table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Type</th>
+                <th>Value</th>
+                <th>Min Order</th>
+                <th>Uses</th>
+                <th>Expires</th>
+                <th>Status</th>
+                <th style="text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="coupons-tbody">
+              <tr><td colspan="8" style="text-align:center; padding: 30px; color: var(--text-dim);">No coupons yet. Click <strong>🌱 SEED DEFAULTS</strong> to add 3 starter coupons, or <strong>+ NEW COUPON</strong> to create your own.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="scanline-frame" style="padding: 18px; position: relative; margin-top: 20px; max-width: 720px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <h3 style="font-family: var(--font-display); letter-spacing: 2px; margin-bottom: 8px; font-size: 0.95rem;">// ℹ HOW COUPONS WORK</h3>
+          <p style="color: var(--text-dim); font-size: 0.85rem; line-height: 1.6; margin: 0;">
+            <strong>Percentage</strong> coupons (e.g. <code>20%</code>) take a % off the order total. <strong>Fixed</strong> coupons (e.g. <code>50 EGP</code>) subtract a flat amount. Set a <strong>min order</strong> to require a minimum, and <strong>max uses</strong> to cap redemptions. Each successful order increments the counter atomically — codes with <code>usedCount &gt;= maxUses</code> are auto-rejected.
+          </p>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -562,6 +609,61 @@
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
           <button type="submit" class="btn btn-primary" id="payment-save-btn">SAVE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="coupon-form-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2 id="coupon-form-title">// New Coupon</h2>
+      <form id="coupon-form" novalidate>
+        <input type="hidden" id="coupon-id" />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="coupon-code">Code * <span style="color: var(--text-muted); font-weight: 400;">(uppercase)</span></label>
+            <input type="text" id="coupon-code" required maxlength="32" placeholder="WELCOME20" style="text-transform: uppercase; font-family: var(--font-mono); letter-spacing: 1px;" />
+          </div>
+          <div class="form-group">
+            <label for="coupon-type">Type *</label>
+            <select id="coupon-type" required>
+              <option value="percentage">Percentage (%)</option>
+              <option value="fixed">Fixed Amount (EGP)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="coupon-value">Value * <span id="coupon-value-suffix" style="color: var(--text-muted); font-weight: 400;">(%)</span></label>
+            <input type="number" id="coupon-value" required min="0.01" step="0.01" placeholder="20" />
+          </div>
+          <div class="form-group">
+            <label for="coupon-min">Min Order (EGP)</label>
+            <input type="number" id="coupon-min" min="0" step="0.01" placeholder="0 = no minimum" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="coupon-max-uses">Max Uses</label>
+            <input type="number" id="coupon-max-uses" min="0" step="1" placeholder="empty = unlimited" />
+          </div>
+          <div class="form-group">
+            <label for="coupon-valid-days">Valid for (days)</label>
+            <input type="number" id="coupon-valid-days" min="1" step="1" placeholder="empty = no expiry" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="coupon-description">Description (shown to customer)</label>
+          <input type="text" id="coupon-description" maxlength="200" placeholder="e.g. Welcome 20% off your first order" />
+        </div>
+        <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+          <input type="checkbox" id="coupon-enabled" checked style="width: auto; margin: 0;" />
+          <label for="coupon-enabled" style="margin: 0;">Enabled (customers can use it)</label>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
+          <button type="submit" class="btn btn-primary" id="coupon-save-btn">SAVE COUPON</button>
         </div>
       </form>
     </div>

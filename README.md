@@ -22,6 +22,7 @@ A fully dynamic, cyber-themed web application built on Firebase with zero card /
   - Customers can re-download any past invoice from their Account page
   - Invoice ID stored in the order, summary sent to admin via Telegram
 - **💳 Dynamic Payment Methods** (Vodafone Cash, Etisalat Cash, WE Cash, Fawry)
+- **🎟️ Discount Coupons** (percentage & fixed, min-order & max-uses, expiry, atomic usedCount)
   - Customer checkout shows **only enabled** methods in real-time (Firestore `onSnapshot`)
   - Selecting a method reveals the account number, copy button, and instructions
   - Customer enters a transaction reference that's stored with the order

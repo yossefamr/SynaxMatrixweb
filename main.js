@@ -20,6 +20,8 @@
   var paymentMethods = [];
   var paymentMethodsListener = null;
   var selectedPaymentMethod = null;
+  var appliedCoupon = null;
+  var appliedDiscount = 0;
 
   function isAdminEmail(email) {
     if (!email) return false;
@@ -295,6 +297,82 @@
     if (refSec) refSec.style.display = "block";
   }
 
+  function computeDiscount(coupon, orderTotal) {
+    if (!coupon) return 0;
+    if (coupon.minOrderAmount && orderTotal < Number(coupon.minOrderAmount)) return 0;
+    if (coupon.type === "percentage") {
+      return Math.round((orderTotal * Number(coupon.value || 0)) / 100 * 100) / 100;
+    } else if (coupon.type === "fixed") {
+      return Math.min(Number(coupon.value || 0), orderTotal);
+    }
+    return 0;
+  }
+
+  function renderCouponFeedback() {
+    var fb = document.getElementById("coupon-feedback");
+    var applyBtn = document.getElementById("coupon-apply-btn");
+    var removeBtn = document.getElementById("coupon-remove-btn");
+    var inputEl = document.getElementById("coupon-input");
+    if (!fb) return;
+    if (appliedCoupon && appliedDiscount > 0 && currentOrderProduct) {
+      var pct = appliedCoupon.type === "percentage" ? " (" + appliedCoupon.value + "%)" : "";
+      fb.innerHTML = '<span style="color: var(--accent);">✓ ' + escapeHtml(appliedCoupon.code) + ' applied</span> · ' +
+        'You save <strong style="color: var(--accent);">' + formatPrice(appliedDiscount) + '</strong>' +
+        ' · New total: <strong style="color: var(--primary);">' + formatPrice(Math.max(0, Number(currentOrderProduct.price) - appliedDiscount)) + '</strong>' + pct;
+      if (applyBtn) applyBtn.style.display = "none";
+      if (removeBtn) removeBtn.style.display = "inline-block";
+      if (inputEl) inputEl.disabled = true;
+    } else {
+      fb.innerHTML = '';
+      if (applyBtn) applyBtn.style.display = "inline-block";
+      if (removeBtn) removeBtn.style.display = "none";
+      if (inputEl) inputEl.disabled = false;
+    }
+  }
+
+  async function applyCouponFromInput() {
+    if (!currentOrderProduct) return;
+    var inputEl = document.getElementById("coupon-input");
+    var fb = document.getElementById("coupon-feedback");
+    if (!inputEl || !fb) return;
+    var raw = String(inputEl.value || "").trim().toUpperCase();
+    if (!raw) { fb.innerHTML = '<span style="color: var(--warn);">Please enter a code</span>'; return; }
+    fb.innerHTML = '<span style="color: var(--text-dim);">Checking...</span>';
+    try {
+      var snap = await db.collection(COLLECTIONS.COUPONS).doc(raw).get();
+      if (!snap.exists) { fb.innerHTML = '<span style="color: var(--danger);">✗ Coupon not found</span>'; appliedCoupon = null; appliedDiscount = 0; renderCouponFeedback(); return; }
+      var c = snap.data();
+      if (c.enabled !== true) { fb.innerHTML = '<span style="color: var(--danger);">✗ Coupon is disabled</span>'; appliedCoupon = null; appliedDiscount = 0; renderCouponFeedback(); return; }
+      if (c.validUntil) {
+        var d = c.validUntil.toDate ? c.validUntil.toDate() : new Date(c.validUntil);
+        if (d < new Date()) { fb.innerHTML = '<span style="color: var(--danger);">✗ Coupon expired</span>'; appliedCoupon = null; appliedDiscount = 0; renderCouponFeedback(); return; }
+      }
+      var used = Number(c.usedCount) || 0;
+      if (c.maxUses && used >= Number(c.maxUses)) { fb.innerHTML = '<span style="color: var(--danger);">✗ Coupon usage limit reached</span>'; appliedCoupon = null; appliedDiscount = 0; renderCouponFeedback(); return; }
+      var orderTotal = Number(currentOrderProduct.price) || 0;
+      if (c.minOrderAmount && orderTotal < Number(c.minOrderAmount)) {
+        fb.innerHTML = '<span style="color: var(--danger);">✗ Minimum order ' + Number(c.minOrderAmount).toFixed(0) + ' EGP required</span>';
+        appliedCoupon = null; appliedDiscount = 0; renderCouponFeedback(); return;
+      }
+      var disc = computeDiscount(c, orderTotal);
+      if (disc <= 0) { fb.innerHTML = '<span style="color: var(--danger);">✗ Coupon not applicable</span>'; appliedCoupon = null; appliedDiscount = 0; renderCouponFeedback(); return; }
+      appliedCoupon = Object.assign({}, c, { id: raw });
+      appliedDiscount = disc;
+      renderCouponFeedback();
+    } catch (e) {
+      fb.innerHTML = '<span style="color: var(--danger);">✗ Error: ' + escapeHtml(e.message || "unknown") + '</span>';
+      console.warn("applyCoupon failed:", e);
+    }
+  }
+
+  function removeAppliedCoupon() {
+    appliedCoupon = null;
+    appliedDiscount = 0;
+    var inputEl = document.getElementById("coupon-input");
+    if (inputEl) inputEl.value = "";
+    renderCouponFeedback();
+  }
+
   async function getFingerprint() {
     if (currentFingerprint) return currentFingerprint;
     try {
@@ -468,6 +546,20 @@
         }
       });
     }
+    var applyBtn = document.getElementById("coupon-apply-btn");
+    if (applyBtn) {
+      applyBtn.addEventListener("click", function () { applyCouponFromInput(); });
+    }
+    var removeBtn = document.getElementById("coupon-remove-btn");
+    if (removeBtn) {
+      removeBtn.addEventListener("click", function () { removeAppliedCoupon(); });
+    }
+    var couponInput = document.getElementById("coupon-input");
+    if (couponInput) {
+      couponInput.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") { e.preventDefault(); applyCouponFromInput(); }
+      });
+    }
   }
 
   function renderProducts(products) {
@@ -518,6 +610,11 @@
     var refSec = document.getElementById("payment-ref-section");
     if (det) det.style.display = "none";
     if (refSec) refSec.style.display = "none";
+    appliedCoupon = null;
+    appliedDiscount = 0;
+    var couponInput = document.getElementById("coupon-input");
+    if (couponInput) couponInput.value = "";
+    renderCouponFeedback();
     renderPaymentMethods();
     updateCooldownUI();
     openModal("order-modal");
@@ -837,6 +934,17 @@
         accountName: selectedPaymentMethod.accountName || ""
       },
       paymentRef: paymentRef || null,
+      coupon: appliedCoupon ? {
+        code: appliedCoupon.code,
+        type: appliedCoupon.type,
+        value: Number(appliedCoupon.value) || 0,
+        description: appliedCoupon.description || ""
+      } : null,
+      discountAmount: appliedDiscount > 0 ? appliedDiscount : 0,
+      originalPrice: Number(currentOrderProduct.price) || 0,
+      finalTotal: appliedDiscount > 0
+        ? Math.max(0, (Number(currentOrderProduct.price) || 0) - appliedDiscount)
+        : (Number(currentOrderProduct.price) || 0),
       userId: currentUser ? currentUser.uid : null,
       userFingerprint: currentFingerprint || null,
       userAgent: navigator.userAgent.slice(0, 200),
@@ -853,6 +961,26 @@
       if (elapsed < minDelay) await new Promise(function (r) { setTimeout(r, minDelay - elapsed); });
 
       var ref = await db.collection(COLLECTIONS.ORDERS).add(data);
+
+      if (appliedCoupon && appliedCoupon.id) {
+        try {
+          await db.runTransaction(function (tx) {
+            var couponRef = db.collection(COLLECTIONS.COUPONS).doc(appliedCoupon.id);
+            return tx.get(couponRef).then(function (snap) {
+              if (!snap.exists) return;
+              var cd = snap.data();
+              if (cd.maxUses) {
+                var u = Number(cd.usedCount) || 0;
+                if (u >= Number(cd.maxUses)) return;
+              }
+              tx.update(couponRef, {
+                usedCount: firebase.firestore.FieldValue.increment(1),
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+              });
+            });
+          });
+        } catch (e) { console.warn("coupon usedCount increment failed:", e); }
+      }
 
       if (invoice) {
         invoice.summary.orderId = ref.id;
@@ -914,7 +1042,10 @@
       "💼 <b>Service</b>\n" +
       "  • " + escapeHtml(order.productTitle || "—") + "\n" +
       (order.productCategory ? "  • Category: " + escapeHtml(order.productCategory) + "\n" : "") +
-      "  • Price: <b>" + escapeHtml(priceStr) + "</b>\n\n" +
+      "  • Price: <b>" + escapeHtml(priceStr) + "</b>" +
+      (order.discountAmount && order.discountAmount > 0
+        ? "\n  • Coupon: <code>" + escapeHtml((order.coupon && order.coupon.code) || "—") + "</code> (-" + escapeHtml(formatPrice(order.discountAmount)) + ")\n  • Final: <b>" + escapeHtml(formatPrice(order.finalTotal || order.productPrice)) + "</b>"
+        : "") + "\n\n" +
       "💳 <b>Payment Method</b>\n" +
       "  • " + escapeHtml((pm.icon || "💰") + " " + (pm.name || "—")) + "\n" +
       (pm.accountNumber ? "  • Account: <code>" + escapeHtml(pm.accountNumber) + "</code>\n" : "") +
@@ -938,7 +1069,10 @@
       "📦 <b>Order:</b> <code>" + escapeHtml(s.orderId || "—") + "</code>\n" +
       "👤 <b>Customer:</b> " + escapeHtml(order.customerName || "—") + "\n" +
       "💼 <b>Service:</b> " + escapeHtml(s.product || "—") + "\n" +
-      "💰 <b>Total:</b> <b>" + escapeHtml(s.price || "—") + "</b>\n" +
+      "💰 <b>Total:</b> <b>" + escapeHtml(s.price || "—") + "</b>" +
+      (order.discountAmount && order.discountAmount > 0
+        ? "\n🎟️ <b>Coupon:</b> <code>" + escapeHtml((order.coupon && order.coupon.code) || "—") + "</code> (-" + escapeHtml(formatPrice(order.discountAmount)) + ")\n💸 <b>Final:</b> <b>" + escapeHtml(formatPrice(order.finalTotal || order.productPrice)) + "</b>"
+        : "") + "\n" +
       "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
       (order.paymentRef ? "🔖 <b>TXN Ref:</b> <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "⏳ <b>Payment:</b> <i>pending — not yet paid</i>\n") +
       "📅 <b>Date:</b> " + escapeHtml(s.date || "—") + "\n" +
@@ -1065,7 +1199,10 @@
       "📄 <b>Invoice:</b> <code>" + escapeHtml(invoice.summary.invoiceId || "—") + "</code>\n" +
       "📦 <b>Order:</b> <code>" + escapeHtml(order.id || "—") + "</code>\n" +
       "💼 <b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
-      "💰 <b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
+      "💰 <b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>" +
+      (order.discountAmount && order.discountAmount > 0
+        ? "\n🎟️ <b>Coupon:</b> <code>" + escapeHtml((order.coupon && order.coupon.code) || "—") + "</code> (-" + escapeHtml(formatPrice(order.discountAmount)) + ")\n💸 <b>Final:</b> <b>" + escapeHtml(formatPrice(order.finalTotal || order.productPrice)) + "</b>"
+        : "") + "\n" +
       "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
       (order.paymentRef ? "🔖 <b>Your TXN:</b> <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "") +
       "━━━━━━━━━━━━━━━━━━━━\n" +
@@ -1095,7 +1232,10 @@
         "👤 <b>Customer:</b> " + escapeHtml(order.customerName || "—") + " (<code>" + escapeHtml(order.customerEmail || "—") + "</code>)\n" +
         "📞 <b>Phone:</b> <code>" + escapeHtml(order.customerPhone || "—") + "</code>\n" +
         "💼 <b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
-        "💰 <b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
+        "💰 <b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>" +
+        (order.discountAmount && order.discountAmount > 0
+          ? "\n🎟️ <b>Coupon:</b> <code>" + escapeHtml((order.coupon && order.coupon.code) || "—") + "</code> (-" + escapeHtml(formatPrice(order.discountAmount)) + ")\n💸 <b>Final:</b> <b>" + escapeHtml(formatPrice(order.finalTotal || order.productPrice)) + "</b>"
+          : "") + "\n" +
         "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
         (order.paymentRef
           ? "🔖 <b>TXN Ref:</b> <code>" + escapeHtml(order.paymentRef) + "</code> (paid)\n"

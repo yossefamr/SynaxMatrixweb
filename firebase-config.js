@@ -39,7 +39,8 @@
     ORDERS: "orders",
     CONFIG: "config",
     VISITORS: "visitors",
-    PAYMENT_METHODS: "paymentMethods"
+    PAYMENT_METHODS: "paymentMethods",
+    COUPONS: "coupons"
   };
 
   window.PAYMENT_DEFAULTS = [
@@ -47,6 +48,12 @@
     { id: "etisalat-cash", name: "Etisalat Cash", type: "mobile_wallet", icon: "💸", color: "#76b900", accountNumber: "", accountName: "", instructions: "Transfer the total amount, then enter the transaction reference below.", enabled: false, sortOrder: 2 },
     { id: "we-cash", name: "WE Cash", type: "mobile_wallet", icon: "💳", color: "#621d6a", accountNumber: "", accountName: "", instructions: "Send the amount via WE Pay, then enter the transaction ID.", enabled: false, sortOrder: 3 },
     { id: "fawry", name: "Fawry", type: "gateway", icon: "🧾", color: "#f37321", accountNumber: "", accountName: "", instructions: "Pay at any Fawry outlet or use the Fawry app with the reference code provided.", enabled: false, sortOrder: 4 }
+  ];
+
+  window.COUPON_DEFAULTS = [
+    { code: "WELCOME10", type: "percentage", value: 10, minOrderAmount: 0, maxUses: null, description: "Welcome 10% off your first order", enabled: true, validDays: 365 },
+    { code: "SAVE20", type: "percentage", value: 20, minOrderAmount: 200, maxUses: 100, description: "20% off orders over 200 EGP (first 100 customers)", enabled: true, validDays: 30 },
+    { code: "FLAT50", type: "fixed", value: 50, minOrderAmount: 300, maxUses: null, description: "Flat 50 EGP off orders over 300 EGP", enabled: true, validDays: 60 }
   ];
 
   window.OWNER_EMAIL = "ya2190069@gmail.com";

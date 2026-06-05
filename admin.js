@@ -13,6 +13,7 @@
   var adminListListener = null;
   var visitorsListener = null;
   var paymentsListener = null;
+  var couponsListener = null;
   var currentOrderFilter = "all";
   var currentOrders = [];
   var adminEmailsCache = [];
@@ -245,6 +246,31 @@
         }
         console.warn("Payments listener error:", err);
       });
+
+    if (couponsListener) couponsListener();
+    couponsListener = db.collection(COLLECTIONS.COUPONS)
+      .onSnapshot(function (snap) {
+        var list = [];
+        snap.forEach(function (d) { list.push({ id: d.id, ...d.data() }); });
+        list.sort(function (a, b) {
+          return (a.code || "").localeCompare(b.code || "");
+        });
+        renderCoupons(list);
+        var status = document.getElementById("coupons-status");
+        if (status) {
+          var enabled = list.filter(function (c) { return c.enabled === true; }).length;
+          var totalUses = list.reduce(function (s, c) { return s + (Number(c.usedCount) || 0); }, 0);
+          status.className = "config-status connected";
+          status.innerHTML = '<span class="dot"></span><span><strong>' + list.length + '</strong> total · <strong style="color: var(--accent);">' + enabled + '</strong> active · <strong>' + totalUses + '</strong> redemptions</span>';
+        }
+      }, function (err) {
+        var status = document.getElementById("coupons-status");
+        if (status) {
+          status.className = "config-status error";
+          status.innerHTML = '<span class="dot"></span><span>Error: ' + err.message + '</span>';
+        }
+        console.warn("Coupons listener error:", err);
+      });
   }
 
   function stopListeners() {
@@ -254,6 +280,7 @@
     if (usersListener) { usersListener(); usersListener = null; }
     if (visitorsListener) { visitorsListener(); visitorsListener = null; }
     if (paymentsListener) { paymentsListener(); paymentsListener = null; }
+    if (couponsListener) { couponsListener(); couponsListener = null; }
   }
 
   function updateUserStats(users) {
@@ -685,6 +712,214 @@
       await batch.commit();
       logAdminEvent("payment_seed", added + " methods");
       showToast(added + " default methods added (edit & enable them to go live)", "success", "SEEDED");
+    } catch (err) {
+      showToast("Seed failed: " + err.message, "error");
+    }
+  }
+
+  function renderCoupons(coupons) {
+    var tbody = $("#coupons-tbody");
+    if (!tbody) return;
+    if (!coupons.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 30px; color: var(--text-dim);">No coupons yet. Click <strong>🌱 SEED DEFAULTS</strong> to add 3 starter coupons, or <strong>+ NEW COUPON</strong> to create your own.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = "";
+    var now = new Date();
+    coupons.forEach(function (c) {
+      var tr = document.createElement("tr");
+      var enabled = c.enabled === true;
+      var valueText = c.type === "percentage" ? (Number(c.value) || 0) + "%" : (Number(c.value) || 0) + " EGP";
+      var minText = c.minOrderAmount ? Number(c.minOrderAmount).toFixed(0) + " EGP" : "—";
+      var uses = (Number(c.usedCount) || 0) + (c.maxUses ? " / " + c.maxUses : " / ∞");
+      var expires = "—";
+      var expired = false;
+      if (c.validUntil) {
+        var d = c.validUntil.toDate ? c.validUntil.toDate() : new Date(c.validUntil);
+        expires = d.toLocaleDateString();
+        if (d < now) { expired = true; expires += " (expired)"; }
+      }
+      var status = enabled ? (expired ? '<span class="badge-soft warn">EXPIRED</span>' : '<span class="badge-soft success">ACTIVE</span>') : '<span class="badge-soft danger">DISABLED</span>';
+      var exhausted = c.maxUses && (Number(c.usedCount) || 0) >= c.maxUses;
+      if (exhausted && enabled) status = '<span class="badge-soft warn">MAX USES</span>';
+
+      tr.innerHTML =
+        '<td style="font-family: var(--font-mono); font-weight: 700; color: var(--primary); letter-spacing: 1px;">' + escapeHtml(c.code) + '</td>' +
+        '<td style="color: var(--text-dim); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 1px;">' + escapeHtml(c.type || "—") + '</td>' +
+        '<td style="font-weight: 700; color: var(--accent);">' + escapeHtml(valueText) + '</td>' +
+        '<td>' + escapeHtml(minText) + '</td>' +
+        '<td style="font-family: var(--font-mono);">' + escapeHtml(uses) + '</td>' +
+        '<td style="color: ' + (expired ? 'var(--danger)' : 'var(--text-dim)') + ';">' + escapeHtml(expires) + '</td>' +
+        '<td>' + status + '</td>' +
+        '<td style="text-align:right; white-space:nowrap;">' +
+          '<button class="btn btn-ghost btn-sm" data-toggle-coupon="' + escapeHtml(c.id) + '" data-enabled="' + (enabled ? "1" : "0") + '" style="margin-right:4px;">' + (enabled ? "DISABLE" : "ENABLE") + '</button>' +
+          '<button class="btn btn-ghost btn-sm" data-edit-coupon="' + escapeHtml(c.id) + '" style="margin-right:4px;">EDIT</button>' +
+          '<button class="btn btn-danger btn-sm" data-delete-coupon="' + escapeHtml(c.id) + '" data-code="' + escapeHtml(c.code) + '">DEL</button>' +
+        '</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll("[data-edit-coupon]").forEach(function (btn) {
+      btn.addEventListener("click", function () { openCouponFormModal(coupons.find(function (x) { return x.id === btn.dataset.editCoupon; })); });
+    });
+    tbody.querySelectorAll("[data-toggle-coupon]").forEach(function (btn) {
+      btn.addEventListener("click", function () { toggleCoupon(btn.dataset.toggleCoupon, btn.dataset.enabled !== "1"); });
+    });
+    tbody.querySelectorAll("[data-delete-coupon]").forEach(function (btn) {
+      btn.addEventListener("click", function () { deleteCoupon(btn.dataset.deleteCoupon, btn.dataset.code); });
+    });
+  }
+
+  function openCouponFormModal(coupon) {
+    var titleEl = document.getElementById("coupon-form-title");
+    var idEl = $("#coupon-id");
+    var codeEl = $("#coupon-code");
+    var typeEl = $("#coupon-type");
+    var valueEl = $("#coupon-value");
+    var minEl = $("#coupon-min");
+    var maxEl = $("#coupon-max-uses");
+    var validEl = $("#coupon-valid-days");
+    var descEl = $("#coupon-description");
+    var enabledEl = $("#coupon-enabled");
+    var suffix = document.getElementById("coupon-value-suffix");
+
+    function updateSuffix() {
+      if (suffix) suffix.textContent = typeEl.value === "fixed" ? "(EGP)" : "(%)";
+    }
+
+    if (coupon) {
+      if (titleEl) titleEl.textContent = "// Edit Coupon · " + coupon.code;
+      if (idEl) idEl.value = coupon.id;
+      if (codeEl) codeEl.value = coupon.code || "";
+      if (typeEl) typeEl.value = coupon.type || "percentage";
+      if (valueEl) valueEl.value = coupon.value || "";
+      if (minEl) minEl.value = coupon.minOrderAmount || "";
+      if (maxEl) maxEl.value = coupon.maxUses || "";
+      if (validEl) validEl.value = "";
+      if (descEl) descEl.value = coupon.description || "";
+      if (enabledEl) enabledEl.checked = coupon.enabled !== false;
+    } else {
+      if (titleEl) titleEl.textContent = "// New Coupon";
+      if (idEl) idEl.value = "";
+      if (codeEl) codeEl.value = "";
+      if (typeEl) typeEl.value = "percentage";
+      if (valueEl) valueEl.value = "";
+      if (minEl) minEl.value = "";
+      if (maxEl) maxEl.value = "";
+      if (validEl) validEl.value = "";
+      if (descEl) descEl.value = "";
+      if (enabledEl) enabledEl.checked = true;
+    }
+    if (typeEl) typeEl.onchange = updateSuffix;
+    updateSuffix();
+    openModal("coupon-form-modal");
+  }
+
+  async function saveCoupon(e) {
+    e.preventDefault();
+    var id = ($("#coupon-id") && $("#coupon-id").value) || "";
+    var codeRaw = ($("#coupon-code") && $("#coupon-code").value || "").trim();
+    var code = codeRaw.toUpperCase().replace(/[^A-Z0-9_-]/g, "");
+    if (!code) { showToast("Code is required", "error"); return; }
+    if (code.length < 2) { showToast("Code too short (min 2 chars)", "error"); return; }
+    var type = ($("#coupon-type") && $("#coupon-type").value) || "percentage";
+    var value = parseFloat(($("#coupon-value") && $("#coupon-value").value) || "0");
+    if (!isFinite(value) || value <= 0) { showToast("Value must be > 0", "error"); return; }
+    if (type === "percentage" && value > 100) { showToast("Percentage cannot exceed 100", "error"); return; }
+    var minOrder = parseFloat(($("#coupon-min") && $("#coupon-min").value) || "0") || 0;
+    var maxUsesRaw = ($("#coupon-max-uses") && $("#coupon-max-uses").value || "").trim();
+    var maxUses = maxUsesRaw ? parseInt(maxUsesRaw, 10) : null;
+    if (maxUses !== null && (!isFinite(maxUses) || maxUses < 0)) { showToast("Max uses must be a positive number", "error"); return; }
+    var validDaysRaw = ($("#coupon-valid-days") && $("#coupon-valid-days").value || "").trim();
+    var validDays = validDaysRaw ? parseInt(validDaysRaw, 10) : null;
+    var description = String(($("#coupon-description") && $("#coupon-description").value) || "").replace(/[<>]/g, "").trim().slice(0, 200);
+    var enabled = !!(($("#coupon-enabled") && $("#coupon-enabled").checked));
+
+    try {
+      var ts = firebase.firestore.FieldValue.serverTimestamp();
+      var payload = {
+        code: code, type: type, value: value,
+        minOrderAmount: minOrder, maxUses: maxUses,
+        description: description, enabled: enabled, updatedAt: ts,
+        updatedBy: currentUser ? currentUser.email : null
+      };
+      if (validDays !== null && isFinite(validDays) && validDays > 0) {
+        var dt = new Date();
+        dt.setDate(dt.getDate() + validDays);
+        payload.validUntil = firebase.firestore.Timestamp.fromDate(dt);
+      }
+      if (id) {
+        await db.collection(COLLECTIONS.COUPONS).doc(id).update(payload);
+        logAdminEvent("coupon_update", code);
+        showToast("Coupon " + code + " updated", "success");
+      } else {
+        payload.codeLower = code.toLowerCase();
+        payload.usedCount = 0;
+        payload.createdAt = ts;
+        payload.createdBy = currentUser ? currentUser.email : null;
+        await db.collection(COLLECTIONS.COUPONS).doc(code).set(payload);
+        logAdminEvent("coupon_create", code);
+        showToast("Coupon " + code + " created", "success");
+      }
+      closeModals();
+    } catch (err) {
+      showToast("Save failed: " + err.message, "error");
+    }
+  }
+
+  async function toggleCoupon(id, enable) {
+    try {
+      await db.collection(COLLECTIONS.COUPONS).doc(id).update({
+        enabled: enable,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser ? currentUser.email : null
+      });
+      logAdminEvent(enable ? "coupon_enable" : "coupon_disable", id);
+    } catch (err) {
+      showToast("Toggle failed: " + err.message, "error");
+    }
+  }
+
+  async function deleteCoupon(id, code) {
+    if (!confirm("Delete coupon " + code + "?")) return;
+    try {
+      await db.collection(COLLECTIONS.COUPONS).doc(id).delete();
+      logAdminEvent("coupon_delete", code);
+      showToast("Coupon " + code + " deleted", "success");
+    } catch (err) {
+      showToast("Delete failed: " + err.message, "error");
+    }
+  }
+
+  async function seedCouponDefaults() {
+    if (!confirm("Add 3 starter coupons (WELCOME10, SAVE20, FLAT50)?")) return;
+    if (!window.COUPON_DEFAULTS) { showToast("Defaults not loaded", "error"); return; }
+    try {
+      var batch = db.batch();
+      var ts = firebase.firestore.FieldValue.serverTimestamp();
+      var added = 0;
+      window.COUPON_DEFAULTS.forEach(function (c) {
+        var payload = {
+          code: c.code, codeLower: c.code.toLowerCase(),
+          type: c.type, value: c.value,
+          minOrderAmount: c.minOrderAmount || 0,
+          maxUses: c.maxUses || null,
+          description: c.description || "",
+          enabled: c.enabled !== false,
+          usedCount: 0, createdAt: ts, updatedAt: ts,
+          createdBy: currentUser ? currentUser.email : null,
+          updatedBy: currentUser ? currentUser.email : null
+        };
+        if (c.validDays) {
+          var dt = new Date();
+          dt.setDate(dt.getDate() + c.validDays);
+          payload.validUntil = firebase.firestore.Timestamp.fromDate(dt);
+        }
+        batch.set(db.collection(COLLECTIONS.COUPONS).doc(c.code), payload);
+        added++;
+      });
+      await batch.commit();
+      logAdminEvent("coupon_seed", added + " coupons");
+      showToast(added + " default coupons added", "success", "SEEDED");
     } catch (err) {
       showToast("Seed failed: " + err.message, "error");
     }
@@ -1239,6 +1474,12 @@
     if (seedPayBtn) seedPayBtn.addEventListener("click", seedPaymentDefaults);
     var payForm = $("#payment-form");
     if (payForm) payForm.addEventListener("submit", savePaymentMethod);
+    var addCouponBtn = $("#add-coupon-btn");
+    if (addCouponBtn) addCouponBtn.addEventListener("click", function () { openCouponFormModal(null); });
+    var seedCouponBtn = $("#seed-coupons-btn");
+    if (seedCouponBtn) seedCouponBtn.addEventListener("click", seedCouponDefaults);
+    var couponForm = $("#coupon-form");
+    if (couponForm) couponForm.addEventListener("submit", saveCoupon);
 
     $("#product-form").addEventListener("submit", saveProduct);
     $("#block-form").addEventListener("submit", blockDevice);

@@ -62,6 +62,7 @@
     var LINE = [220, 225, 235];
     var BG = [248, 250, 252];
     var WARN = [200, 130, 0];
+    var ACCENT = [0, 180, 110];
 
     doc.setFillColor.apply(doc, DARK);
     doc.rect(0, 0, 210, 38, "F");
@@ -194,24 +195,38 @@
     doc.text("Subtotal", 145, totalY);
     doc.text(priceStr, 192, totalY, { align: "right" });
 
-    doc.text("Tax (0%)", 145, totalY + 6);
-    doc.text("0.00 EGP", 192, totalY + 6, { align: "right" });
+    var hasDiscount = order.discountAmount && Number(order.discountAmount) > 0;
+    var extraLine = 0;
+    if (hasDiscount) {
+      var discStr = "-" + fmtMoney(order.discountAmount);
+      var coupon = order.coupon || {};
+      var label = (coupon.code ? "Coupon " + coupon.code : "Discount");
+      doc.setTextColor.apply(doc, ACCENT || [0, 200, 120]);
+      doc.text(label, 145, totalY + 6);
+      doc.text(discStr, 192, totalY + 6, { align: "right" });
+      extraLine = 6;
+    }
+
+    doc.text("Tax (0%)", 145, totalY + 6 + extraLine);
+    doc.text("0.00 EGP", 192, totalY + 6 + extraLine, { align: "right" });
+
+    var finalStr = hasDiscount ? fmtMoney(order.finalTotal || (Number(order.productPrice) - Number(order.discountAmount))) : priceStr;
 
     doc.setFillColor.apply(doc, BG);
-    doc.rect(140, totalY + 11, 55, 12, "F");
+    doc.rect(140, totalY + 11 + extraLine, 55, 12, "F");
     doc.setDrawColor.apply(doc, CYAN);
     doc.setLineWidth(0.5);
-    doc.rect(140, totalY + 11, 55, 12);
+    doc.rect(140, totalY + 11 + extraLine, 55, 12);
 
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.setTextColor.apply(doc, DARK);
-    doc.text("TOTAL", 145, totalY + 19);
+    doc.text(hasDiscount ? "FINAL TOTAL" : "TOTAL", 145, totalY + 19 + extraLine);
     doc.setFontSize(13);
     doc.setTextColor.apply(doc, CYAN);
-    doc.text(priceStr, 192, totalY + 19, { align: "right" });
+    doc.text(finalStr, 192, totalY + 19 + extraLine, { align: "right" });
 
-    var payY = totalY + 36;
+    var payY = totalY + 36 + extraLine;
     if (order.paymentMethod) {
       doc.setFillColor.apply(doc, BG);
       doc.roundedRect(15, payY, 180, 30, 2, 2, "F");
@@ -319,7 +334,13 @@
         date: fmtDate(date),
         orderId: order.id,
         paymentMethod: order.paymentMethod ? order.paymentMethod.name : null,
-        paymentRef: order.paymentRef || null
+        paymentRef: order.paymentRef || null,
+        coupon: order.coupon || null,
+        discountAmount: order.discountAmount || 0,
+        finalTotal: order.finalTotal || order.productPrice || 0,
+        price: (order.discountAmount && Number(order.discountAmount) > 0)
+          ? fmtMoney(order.finalTotal || (Number(order.productPrice) - Number(order.discountAmount)))
+          : priceStr
       }
     };
   }
