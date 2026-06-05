@@ -10,7 +10,7 @@
   <meta http-equiv="X-Content-Type-Options" content="nosniff" />
   <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
   <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=()" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://api.telegram.org https://*.googleapis.com https://www.gstatic.com https://cdnjs.cloudflare.com; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://api.telegram.org https://*.googleapis.com https://www.gstatic.com https://cdnjs.cloudflare.com https://0x0.st https://transfer.sh; base-uri 'self'; form-action 'self';" />
 
   <title>SynaxMatrix // Digital Products & Services</title>
   <link rel="canonical" href="https://yossefamr.github.io/SynaxMatrixweb/" />
@@ -194,9 +194,9 @@
         </div>
 
         <div class="form-group" id="payment-ref-section" style="display:none">
-          <label for="payment-ref">Transaction Reference *</label>
-          <input type="text" id="payment-ref" maxlength="100" placeholder="e.g. TXN-123456 or transaction screenshot ID" autocomplete="off" />
-          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">After paying, enter the reference number from your receipt.</div>
+          <label for="payment-ref">Transaction Reference <span style="color:var(--text-muted); font-weight: 400;">(optional)</span></label>
+          <input type="text" id="payment-ref" maxlength="100" placeholder="Leave blank — admin will contact you for payment" autocomplete="off" />
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Optional: only fill this if you've already paid. Otherwise we'll contact you to confirm payment via the selected method.</div>
         </div>
 
         <div class="honeypot" aria-hidden="true">

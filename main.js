@@ -804,15 +804,8 @@
       return;
     }
     var paymentRef = sanitizeText(document.getElementById("payment-ref").value);
-    if (!paymentRef) {
-      errBox.textContent = "Please enter the transaction reference from your payment";
-      errBox.style.display = "block";
-      submitBtn.disabled = false;
-      submitBtn.textContent = "SUBMIT ORDER";
-      return;
-    }
-    if (paymentRef.length < 3) {
-      errBox.textContent = "Transaction reference too short (min 3 chars)";
+    if (paymentRef && paymentRef.length < 3) {
+      errBox.textContent = "Transaction reference too short (min 3 chars, or leave blank)";
       errBox.style.display = "block";
       submitBtn.disabled = false;
       submitBtn.textContent = "SUBMIT ORDER";
@@ -843,7 +836,7 @@
         accountNumber: selectedPaymentMethod.accountNumber || "",
         accountName: selectedPaymentMethod.accountName || ""
       },
-      paymentRef: paymentRef,
+      paymentRef: paymentRef || null,
       userId: currentUser ? currentUser.uid : null,
       userFingerprint: currentFingerprint || null,
       userAgent: navigator.userAgent.slice(0, 200),
@@ -877,8 +870,8 @@
 
       sendTelegramNotification(orderWithId).catch(function (e) { console.warn("Telegram failed:", e); });
       sendTelegramInvoiceSummary(orderWithId, invoice).catch(function (e) { console.warn("Telegram summary failed:", e); });
-      deliverInvoiceViaTelegram(orderWithId, invoice).then(function () {
-        if (window.__refreshInvoiceToast) window.__refreshInvoiceToast();
+      deliverInvoiceViaTelegram(orderWithId, invoice).then(function (res) {
+        if (window.__refreshInvoiceToast) window.__refreshInvoiceToast(res && res.method, res && res.url);
       }).catch(function (e) { console.warn("Telegram PDF delivery failed:", e); });
 
       showInvoiceToast(ref.id, invoice, name);
@@ -903,24 +896,33 @@
   async function sendTelegramNotification(order) {
     if (!telegramConfig || !telegramConfig.botToken || !telegramConfig.chatId) return;
     if (telegramConfig.enabled === false) return;
-    var lines = [
-      "🛒 *NEW ORDER RECEIVED*",
-      "",
-      "📦 *Product:* " + (order.productTitle || "—"),
-      "💰 *Price:* " + formatPrice(order.productPrice),
-      "🆔 *Order ID:* `" + (order.id || "—") + "`",
-      "🧾 *Invoice:* `" + (order.invoiceId || "—") + "`",
-      "",
-      "👤 *Customer Details:*",
-      "• Name: " + (order.customerName || "—"),
-      "• Phone: " + (order.customerPhone || "—"),
-      "• Email: " + (order.customerEmail || "—")
-    ];
-    if (order.customerAddress) lines.push("• Address: " + order.customerAddress);
-    if (order.notes) lines.push("• Notes: " + order.notes);
-    lines.push("", "⏰ " + new Date().toLocaleString());
-    var text = encodeURIComponent(lines.join("\n"));
-    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=Markdown&text=" + text;
+    var pm = order.paymentMethod || {};
+    var priceStr = formatPrice(order.productPrice);
+    var html =
+      "🛒 <b>NEW ORDER RECEIVED</b>\n" +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "📦 <b>Order</b>\n" +
+      "  • ID: <code>" + escapeHtml(order.id || "—") + "</code>\n" +
+      "  • Invoice: <code>" + escapeHtml(order.invoiceId || "—") + "</code>\n" +
+      "  • Date: " + escapeHtml(new Date().toLocaleString()) + "\n\n" +
+      "👤 <b>Customer</b>\n" +
+      "  • Name: " + escapeHtml(order.customerName || "—") + "\n" +
+      "  • Phone: <code>" + escapeHtml(order.customerPhone || "—") + "</code>\n" +
+      "  • Email: " + escapeHtml(order.customerEmail || "—") + "\n" +
+      (order.customerAddress ? "  • Address: " + escapeHtml(order.customerAddress) + "\n" : "") +
+      (order.notes ? "  • Notes: " + escapeHtml(order.notes) + "\n" : "") + "\n" +
+      "💼 <b>Service</b>\n" +
+      "  • " + escapeHtml(order.productTitle || "—") + "\n" +
+      (order.productCategory ? "  • Category: " + escapeHtml(order.productCategory) + "\n" : "") +
+      "  • Price: <b>" + escapeHtml(priceStr) + "</b>\n\n" +
+      "💳 <b>Payment Method</b>\n" +
+      "  • " + escapeHtml((pm.icon || "💰") + " " + (pm.name || "—")) + "\n" +
+      (pm.accountNumber ? "  • Account: <code>" + escapeHtml(pm.accountNumber) + "</code>\n" : "") +
+      (pm.accountName ? "  • Name: " + escapeHtml(pm.accountName) + "\n" : "") +
+      (order.paymentRef ? "  • TXN Ref: <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "  • TXN Ref: <i>not paid yet — contact customer</i>\n") + "\n" +
+      "📌 <b>Status:</b> <i>Pending Contact</i>\n" +
+      "━━━━━━━━━━━━━━━━━━━━";
+    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=HTML&text=" + encodeURIComponent(html);
     try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* telegram will still send */ }
   }
 
@@ -949,27 +951,72 @@
       payment: {
         method_id: (order.paymentMethod && order.paymentMethod.id) || null,
         method_name: (order.paymentMethod && order.paymentMethod.name) || null,
-        method_type: (order.paymentMethod && order.paymentMethod.type) || null,
         account_number: (order.paymentMethod && order.paymentMethod.accountNumber) || null,
-        transaction_ref: order.paymentRef || null
+        transaction_ref: order.paymentRef || null,
+        paid: !!order.paymentRef
       },
       status: order.status || "pending",
       pdf_filename: invoice.filename
     };
     var jsonStr = JSON.stringify(jsonPayload, null, 2);
-    var header = "🧾 <b>NEW INVOICE GENERATED</b>\n";
-    var fields = "<b>Invoice:</b> <code>" + escapeHtml(s.invoiceId || "—") + "</code>\n" +
-                 "<b>Order:</b> <code>" + escapeHtml(s.orderId || "—") + "</code>\n" +
-                 "<b>Customer:</b> " + escapeHtml(order.customerName || "—") + "\n" +
-                 "<b>Service:</b> " + escapeHtml(s.product || "—") + "\n" +
-                 "<b>Total:</b> <b>" + escapeHtml(s.price || "—") + "</b>\n" +
-                 "<b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + " (<code>" + escapeHtml(order.paymentRef || "—") + "</code>)\n" +
-                 "<b>Date:</b> " + escapeHtml(s.date || "—") + "\n\n";
-    var jsonBlock = "<pre>📦 JSON Payload:\n" + escapeHtml(jsonStr) + "</pre>";
-    var footer = "\n📄 PDF attached below ↓";
-    var fullText = header + fields + jsonBlock + footer;
-    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=HTML&text=" + encodeURIComponent(fullText);
+    var html =
+      "🧾 <b>INVOICE GENERATED</b>\n" +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "📄 <b>Invoice:</b> <code>" + escapeHtml(s.invoiceId || "—") + "</code>\n" +
+      "📦 <b>Order:</b> <code>" + escapeHtml(s.orderId || "—") + "</code>\n" +
+      "👤 <b>Customer:</b> " + escapeHtml(order.customerName || "—") + "\n" +
+      "💼 <b>Service:</b> " + escapeHtml(s.product || "—") + "\n" +
+      "💰 <b>Total:</b> <b>" + escapeHtml(s.price || "—") + "</b>\n" +
+      "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
+      (order.paymentRef ? "🔖 <b>TXN Ref:</b> <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "") +
+      "📅 <b>Date:</b> " + escapeHtml(s.date || "—") + "\n" +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "<pre>📦 JSON:\n" + escapeHtml(jsonStr) + "</pre>";
+    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=HTML&text=" + encodeURIComponent(html);
     try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* */ }
+  }
+
+  async function uploadToTempHost(blob, filename) {
+    var cleanName = (filename || "invoice.pdf").replace(/[^\w.\-]/g, "_");
+    var hosts = [
+      {
+        name: "0x0.st",
+        url: "https://0x0.st",
+        build: function (b, n) {
+          var fd = new FormData();
+          fd.append("file", b, n);
+          fd.append("expires", "24");
+          return fd;
+        },
+        parse: function (t) { return { url: t.trim() }; }
+      },
+      {
+        name: "transfer.sh",
+        url: "https://transfer.sh/" + encodeURIComponent(cleanName),
+        build: function (b) {
+          var fd = new FormData();
+          fd.append("file", b);
+          return fd;
+        },
+        parse: function (t) { return { url: t.trim() }; }
+      }
+    ];
+    for (var i = 0; i < hosts.length; i++) {
+      var h = hosts[i];
+      try {
+        var res = await fetch(h.url, { method: "POST", body: h.build(blob, cleanName) });
+        if (res.ok) {
+          var text = await res.text();
+          var parsed = h.parse(text);
+          if (parsed && parsed.url && /^https?:\/\//.test(parsed.url)) {
+            return { ok: true, url: parsed.url, host: h.name };
+          }
+        }
+      } catch (e) {
+        console.warn("Upload to " + h.name + " failed:", e && e.message);
+      }
+    }
+    return { ok: false };
   }
 
   async function sendTelegramDocument(chatId, blob, filename, caption) {
@@ -1002,6 +1049,7 @@
         try {
           var data = await res.json();
           if (data && data.ok) return { ok: true, method: "cors" };
+          console.warn("Telegram sendDocument api-error:", data && data.description);
           return { ok: false, reason: "api-error", detail: data && data.description };
         } catch (e) {
           return { ok: true, method: "cors" };
@@ -1019,8 +1067,24 @@
         });
         return { ok: true, method: "no-cors" };
       } catch (fallbackErr) {
-        console.error("sendTelegramDocument fallback also failed:", fallbackErr);
-        return { ok: false, reason: "network" };
+        console.warn("sendTelegramDocument no-cors fallback also failed, uploading to temp host:", fallbackErr && fallbackErr.message);
+        try {
+          var up = await uploadToTempHost(blob, cleanName);
+          if (up && up.ok) {
+            var linkCaption = (caption ? caption + "\n\n" : "") + "📄 <b>Invoice PDF:</b> <a href=\"" + up.url + "\">" + up.url + "</a>\n(<i>hosted on " + up.host + "</i>)";
+            if (linkCaption.length > 1024) linkCaption = linkCaption.slice(0, 1020) + "...";
+            var fd2 = new FormData();
+            fd2.append("chat_id", String(chatId));
+            fd2.append("caption", linkCaption);
+            fd2.append("parse_mode", "HTML");
+            await fetch("https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage", { method: "POST", mode: "no-cors", body: fd2 });
+            return { ok: true, method: "link-fallback", url: up.url, host: up.host };
+          }
+          return { ok: false, reason: "all-failed" };
+        } catch (e3) {
+          console.error("sendTelegramDocument all attempts failed:", e3);
+          return { ok: false, reason: "all-failed" };
+        }
       }
     }
   }
@@ -1038,13 +1102,17 @@
     }
 
     var caption =
-      "🧾 <b>Your SynaxMatrix Invoice</b>\n" +
-      "<b>Invoice:</b> <code>" + escapeHtml(invoice.summary.invoiceId || "—") + "</code>\n" +
-      "<b>Order:</b> <code>" + escapeHtml(order.id || "—") + "</code>\n" +
-      "<b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
-      "<b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
-      "<b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n\n" +
-      "Thank you for your order! We'll contact you shortly. 🚀";
+      "🧾 <b>Your SynaxMatrix Order</b>\n" +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "📄 <b>Invoice:</b> <code>" + escapeHtml(invoice.summary.invoiceId || "—") + "</code>\n" +
+      "📦 <b>Order:</b> <code>" + escapeHtml(order.id || "—") + "</code>\n" +
+      "💼 <b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
+      "💰 <b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
+      "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
+      (order.paymentRef ? "🔖 <b>Your TXN:</b> <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "") +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "✅ <b>Thank you for your order!</b>\n" +
+      "Our team will contact you shortly to confirm payment via your selected method. 🚀";
 
     if (currentUser) {
       try {
@@ -1053,7 +1121,7 @@
         var userChatId = userData && userData.telegramChatId ? String(userData.telegramChatId) : null;
         if (userChatId) {
           var r = await sendTelegramDocument(userChatId, invoice.blob, invoice.filename, caption);
-          if (r && r.ok) console.log("✓ Invoice PDF sent to user Telegram:", userChatId, "(" + r.method + ")");
+          if (r && r.ok) console.log("✓ Invoice PDF sent to user Telegram:", userChatId, "(" + r.method + (r.url ? " · " + r.url : "") + ")");
           else console.warn("✗ User PDF delivery failed:", r);
         }
       } catch (e) { console.warn("User chat id lookup failed:", e); }
@@ -1062,17 +1130,29 @@
     var adminChatId = telegramConfig.chatId;
     if (adminChatId) {
       var adminCaption =
-        "📥 <b>Order Invoice (PDF)</b>\n" +
-        "<b>Order:</b> <code>" + escapeHtml(order.id || "—") + "</code>\n" +
-        "<b>Invoice:</b> <code>" + escapeHtml(invoice.summary.invoiceId || "—") + "</code>\n" +
-        "<b>Customer:</b> " + escapeHtml(order.customerName || "—") + " (<code>" + escapeHtml(order.customerEmail || "—") + "</code>)\n" +
-        "<b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
-        "<b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
-        "<b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + " (<code>" + escapeHtml(order.paymentRef || "—") + "</code>)";
+        "📥 <b>New Order — Invoice PDF</b>\n" +
+        "━━━━━━━━━━━━━━━━━━━━\n" +
+        "📦 <b>Order:</b> <code>" + escapeHtml(order.id || "—") + "</code>\n" +
+        "📄 <b>Invoice:</b> <code>" + escapeHtml(invoice.summary.invoiceId || "—") + "</code>\n" +
+        "👤 <b>Customer:</b> " + escapeHtml(order.customerName || "—") + " (<code>" + escapeHtml(order.customerEmail || "—") + "</code>)\n" +
+        "📞 <b>Phone:</b> <code>" + escapeHtml(order.customerPhone || "—") + "</code>\n" +
+        "💼 <b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
+        "💰 <b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
+        "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
+        (order.paymentRef
+          ? "🔖 <b>TXN Ref:</b> <code>" + escapeHtml(order.paymentRef) + "</code> (paid)\n"
+          : "⏳ <b>TXN Ref:</b> <i>not provided — customer hasn't paid yet</i>\n") +
+        "━━━━━━━━━━━━━━━━━━━━";
       var ar = await sendTelegramDocument(adminChatId, invoice.blob, invoice.filename, adminCaption);
-      if (ar && ar.ok) console.log("✓ Invoice PDF sent to admin Telegram (" + ar.method + ")");
-      else console.warn("✗ Admin PDF delivery failed:", ar);
+      if (ar && ar.ok) {
+        console.log("✓ Invoice PDF sent to admin Telegram (" + ar.method + (ar.url ? " · " + ar.url : "") + ")");
+        return ar;
+      } else {
+        console.warn("✗ Admin PDF delivery failed:", ar);
+        return ar;
+      }
     }
+    return null;
   }
 
   function showInvoiceToast(orderId, invoice, customerName) {
@@ -1090,10 +1170,20 @@
       '<div id="' + tgSlotId + '" style="margin-top:6px; font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono);">📡 Sending to Telegram...</div>' +
       (invoice && invoice.dataUrl ? '<a href="' + invoice.dataUrl + '" download="' + escapeHtml(invoice.filename) + '" style="display:inline-block; margin-top:10px; padding:6px 12px; background: rgba(0,240,255,0.15); border:1px solid var(--primary); border-radius:6px; color: var(--primary); font-size: 0.8rem; font-weight: 700; letter-spacing: 1px; text-decoration: none;">⬇ DOWNLOAD INVOICE</a>' : '');
     container.appendChild(t);
-    window.__refreshInvoiceToast = function () {
+    window.__refreshInvoiceToast = function (method, url) {
       var slot = document.getElementById(tgSlotId);
       if (slot && slot.parentNode) {
-        slot.innerHTML = '📡 PDF sent to Admin Telegram' + (currentUser ? ' · <span style="color:var(--accent);">check your Telegram</span>' : '');
+        var icon = "📡";
+        var txt = "PDF sent to Admin Telegram";
+        if (method === "link-fallback") {
+          icon = "🔗";
+          txt = "PDF link sent to Admin Telegram";
+          if (url) txt += ' · <a href="' + escapeHtml(url) + '" target="_blank" rel="noopener" style="color:var(--primary); text-decoration: underline;">view here</a>';
+        } else if (method === "no-cors") {
+          icon = "📤";
+          txt = "PDF uploaded to Admin Telegram (fire-and-forget)";
+        }
+        slot.innerHTML = icon + " " + txt + (currentUser ? ' · <span style="color:var(--accent);">check your Telegram</span>' : '');
       }
     };
     setTimeout(function () {
