@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#03030a" />
+  <meta name="description" content="SynaxMatrix — Premium digital products and services. Cyber-tech aesthetic, cutting-edge solutions." />
+  <meta name="robots" content="index, follow" />
+
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=()" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://api.telegram.org https://*.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+
+  <title>SynaxMatrix // Digital Products & Services</title>
+  <link rel="canonical" href="https://yossefamr.github.io/SynaxMatrixweb/" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%A1%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a class="skip-link" href="#products">Skip to content</a>
+
+  <nav class="navbar" aria-label="Main navigation">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand" aria-label="SynaxMatrix home">SYNAX<span class="dot">.</span>MATRIX</a>
+
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="nav-links" id="nav-links">
+        <a href="#products">// PRODUCTS</a>
+        <a href="#about">// ABOUT</a>
+        <a href="account.html">// ACCOUNT</a>
+        <a href="admin.html" class="admin-link" id="admin-link" style="display:none">⚡ ADMIN</a>
+      </div>
+
+      <div class="nav-user" id="nav-user">
+        <button class="btn btn-ghost btn-sm" id="open-login-btn">LOGIN</button>
+        <button class="btn btn-primary btn-sm" id="open-signup-btn">SIGN UP</button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container">
+    <section class="hero">
+      <h1 class="glitch-text">NEXT-GEN DIGITAL<br />SERVICES</h1>
+      <p>Premium products engineered for the modern era. Browse the catalog below — every item is hand-crafted, tested, and deployed to production.</p>
+      <div class="hero-cta">
+        <a href="#products" class="btn btn-primary">EXPLORE STORE</a>
+        <a href="#about" class="btn btn-ghost">LEARN MORE</a>
+      </div>
+      <div class="hero-stats">
+        <div class="stat">
+          <div class="stat-value" id="stat-products">0</div>
+          <div class="stat-label">Products Live</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">24/7</div>
+          <div class="stat-label">Support Uplink</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">100%</div>
+          <div class="stat-label">Encrypted</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="products">
+      <div class="section-header">
+        <h2 class="section-title">Product Catalog</h2>
+        <span class="badge-soft" id="catalog-count">Loading...</span>
+      </div>
+      <div id="product-grid" class="product-grid">
+        <div class="empty-state" style="grid-column: 1/-1">
+          <div class="loader" style="margin: 0 auto 16px"></div>
+          <p>Establishing secure connection...</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="about" class="hero" style="padding-top: 20px;">
+      <h2 class="section-title" style="margin-bottom: 24px; text-align:left">// About the System</h2>
+      <p style="text-align:left; max-width:none">
+        SynaxMatrix runs on a fully dynamic Firebase backend with a private admin dashboard.
+        Every product, every price, every detail is controlled via a secure panel — no code changes, no redeploys.
+        Just login, manage, and the storefront updates in real time.
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="glitch-text" style="margin-bottom: 12px;">SYNAXMATRIX // EST. 2026</div>
+      <p>Powered by Firebase · Built for the future · All transactions encrypted</p>
+    </div>
+  </footer>
+
+  <button id="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
+
+  <div id="product-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="product-detail-title">
+    <div class="modal modal-large">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <div id="product-detail"></div>
+    </div>
+  </div>
+
+  <div id="auth-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2 id="auth-title">// Access Portal</h2>
+      <div class="auth-tabs" role="tablist">
+        <button class="auth-tab active" data-auth-tab="login" role="tab" aria-selected="true">LOGIN</button>
+        <button class="auth-tab" data-auth-tab="signup" role="tab" aria-selected="false">SIGN UP</button>
+      </div>
+      <form id="auth-form" novalidate>
+        <div class="form-group" id="name-group" style="display:none">
+          <label for="auth-name">Display Name</label>
+          <input type="text" id="auth-name" placeholder="Your name" maxlength="50" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label for="auth-email">Email</label>
+          <input type="email" id="auth-email" required placeholder="you@example.com" autocomplete="email" inputmode="email" />
+        </div>
+        <div class="form-group">
+          <label for="auth-password">Password</label>
+          <input type="password" id="auth-password" required placeholder="••••••••" autocomplete="current-password" minlength="6" />
+          <div class="pw-strength" id="pw-strength" aria-hidden="true">
+            <div class="pw-bar"><span></span></div>
+            <div class="pw-label">Password strength: <strong id="pw-label-text">—</strong></div>
+          </div>
+        </div>
+        <div id="auth-error" class="error-msg" role="alert" style="display:none"></div>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 8px;" id="auth-submit-btn">
+          <span id="auth-btn-text">LOGIN</span>
+        </button>
+        <p style="text-align:center; color: var(--text-muted); font-size: 0.8rem; margin-top: 20px; letter-spacing: 1px;">
+          // YOUR DATA IS ENCRYPTED
+        </p>
+      </form>
+    </div>
+  </div>
+
+  <div id="order-modal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="order-title">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2 id="order-title">// Place Order</h2>
+      <div class="order-summary" id="order-summary"></div>
+      <form id="order-form" novalidate>
+        <div class="form-group">
+          <label for="cust-name">Full Name *</label>
+          <input type="text" id="cust-name" required maxlength="100" placeholder="Mohamed Ahmed" autocomplete="name" />
+        </div>
+        <div class="form-group">
+          <label for="cust-phone">Phone Number *</label>
+          <input type="tel" id="cust-phone" required maxlength="20" placeholder="01xxxxxxxxx" autocomplete="tel" inputmode="tel" pattern="[0-9+\-\s\(\)]{6,20}" />
+        </div>
+        <div class="form-group">
+          <label for="cust-email">Email *</label>
+          <input type="email" id="cust-email" required maxlength="100" placeholder="you@example.com" autocomplete="email" inputmode="email" />
+        </div>
+        <div class="form-group">
+          <label for="cust-address">Address (optional)</label>
+          <input type="text" id="cust-address" maxlength="200" placeholder="Cairo, Egypt" autocomplete="street-address" />
+        </div>
+        <div class="form-group">
+          <label for="cust-notes">Notes (optional)</label>
+          <textarea id="cust-notes" maxlength="500" placeholder="Any special requirements..." style="min-height: 60px"></textarea>
+        </div>
+        <div class="honeypot" aria-hidden="true">
+          <label for="website">Website (leave blank)</label>
+          <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+        </div>
+        <div id="order-error" class="error-msg" role="alert" style="display:none"></div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
+          <button type="submit" class="btn btn-primary" id="order-submit-btn">SUBMIT ORDER</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

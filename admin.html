@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#03030a" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Permissions-Policy" content="geolocation=(), microphone=(), camera=(), payment=()" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://api.telegram.org https://*.googleapis.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self';" />
+
+  <title>ADMIN // SynaxMatrix Control Panel</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%99%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a class="skip-link" href="#dashboard-view">Skip to dashboard</a>
+
+  <div id="login-view" class="login-wrap">
+    <div class="login-card scanline-frame">
+      <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+      <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+      <div class="lock-icon">&#9889;</div>
+      <div class="logo glitch-text">ADMIN</div>
+      <div class="subtitle">// Restricted Access</div>
+      <form id="login-form" novalidate>
+        <div class="form-group">
+          <label for="email">Operator Email</label>
+          <input type="email" id="email" required placeholder="admin@synaxmatrix.io" autocomplete="email" inputmode="email" />
+        </div>
+        <div class="form-group">
+          <label for="password">Access Key</label>
+          <input type="password" id="password" required placeholder="••••••••" autocomplete="current-password" />
+        </div>
+        <div id="login-error" class="error-msg" role="alert" style="display:none"></div>
+        <button type="submit" class="btn btn-primary" style="width:100%; margin-top: 8px;">
+          <span id="login-btn-text">AUTHENTICATE</span>
+        </button>
+        <div style="text-align:center; margin-top: 20px;">
+          <a href="index.html" style="color: var(--text-muted); font-size: 0.85rem; letter-spacing: 1px;">← Back to store</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="denied-view" class="login-wrap" style="display:none">
+    <div class="login-card scanline-frame" style="max-width: 480px;">
+      <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+      <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+      <div class="lock-icon" style="color: var(--danger); border-color: var(--danger); box-shadow: 0 0 12px rgba(255,0,85,0.5); animation: none;">&#9940;</div>
+      <div class="logo glitch-text" style="background: linear-gradient(90deg, #ff0055, #ff5588); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;">ACCESS DENIED</div>
+      <div class="subtitle">// Insufficient Privileges</div>
+      <p style="text-align:center; color: var(--text-dim); margin: 16px 0; line-height: 1.6;">
+        The account <strong style="color: var(--primary); font-family: var(--font-mono); word-break: break-all;" id="denied-email"></strong> does not have admin privileges.
+      </p>
+      <p style="text-align:center; color: var(--text-muted); font-size: 0.85rem; margin-bottom: 20px;">
+        // This attempt has been logged
+      </p>
+      <button class="btn btn-ghost" id="denied-logout-btn" style="width:100%">SIGN OUT</button>
+      <div style="text-align:center; margin-top: 16px;">
+        <a href="index.html" style="color: var(--text-muted); font-size: 0.85rem;">← Back to store</a>
+      </div>
+    </div>
+  </div>
+
+  <div id="dashboard-view" class="dashboard" style="display:none">
+    <button class="sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">☰</button>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">SYNAX<span class="accent">.</span>ADMIN</div>
+      <div class="nav-item active" data-tab="products">
+        <span class="icon">&#9728;</span> Products
+      </div>
+      <div class="nav-item" data-tab="orders">
+        <span class="icon">&#128722;</span> Orders
+        <span id="orders-badge" style="margin-left:auto; background:var(--warn); color:#000; font-size:0.7rem; padding:2px 8px; border-radius:10px; font-weight:800; display:none">0</span>
+      </div>
+      <div class="nav-item" data-tab="users">
+        <span class="icon">&#128101;</span> Users
+      </div>
+      <div class="nav-item" data-tab="admins">
+        <span class="icon">&#128272;</span> Admins
+      </div>
+      <div class="nav-item" data-tab="blocks">
+        <span class="icon">&#128683;</span> Block List
+      </div>
+      <div class="nav-item" data-tab="telegram">
+        <span class="icon">&#9992;</span> Telegram
+      </div>
+      <div class="sidebar-footer">
+        <div class="user-badge">
+          <div class="avatar" id="user-avatar">A</div>
+          <div style="overflow:hidden; min-width:0; flex:1">
+            <div id="user-email" style="font-size: 0.85rem; color: var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis">admin</div>
+            <div style="font-size: 0.7rem; color: var(--text-muted); letter-spacing: 1px;">OPERATOR</div>
+          </div>
+        </div>
+        <a href="index.html" class="btn btn-ghost btn-sm" style="width:100%; margin-bottom: 6px; text-align:center;">← STORE</a>
+        <button class="btn btn-ghost btn-sm" id="logout-btn" style="width:100%">LOGOUT</button>
+      </div>
+    </aside>
+
+    <main class="dash-main">
+      <section id="tab-products" class="tab-content">
+        <div class="dash-header">
+          <h1 class="dash-title">PRODUCT <span class="accent">MANAGEMENT</span></h1>
+          <button class="btn btn-primary" id="add-product-btn">+ ADD PRODUCT</button>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-card scanline-frame primary">
+            <div class="label">Total Products</div>
+            <div class="value" id="stat-total">0</div>
+          </div>
+          <div class="stat-card scanline-frame success">
+            <div class="label">Avg. Price</div>
+            <div class="value" id="stat-avg">0 ج.م</div>
+          </div>
+          <div class="stat-card scanline-frame">
+            <div class="label">Registered Users</div>
+            <div class="value" id="stat-users">0</div>
+          </div>
+          <div class="stat-card scanline-frame" style="--primary: var(--accent);">
+            <div class="label">
+              <span id="online-dot" style="display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--text-muted); margin-right:6px;"></span>
+              Online Now
+            </div>
+            <div class="value" id="stat-online" style="color: var(--accent); text-shadow: var(--glow-green);">0</div>
+          </div>
+          <div class="stat-card scanline-frame danger">
+            <div class="label">Offline Users</div>
+            <div class="value" id="stat-offline">0</div>
+          </div>
+          <div class="stat-card scanline-frame" style="--primary: #ff5500;">
+            <div class="label">Blocked Devices</div>
+            <div class="value" id="stat-blocks">0</div>
+          </div>
+        </div>
+
+        <div id="admin-product-grid" class="admin-product-grid">
+          <div class="empty-state" style="grid-column: 1/-1">
+            <div class="loader" style="margin: 0 auto 16px"></div>
+            <p>Loading products...</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-orders" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">CUSTOMER <span class="accent">ORDERS</span></h1>
+          <select id="order-filter" style="width: auto; min-width: 160px;">
+            <option value="all">All Orders</option>
+            <option value="pending">Pending</option>
+            <option value="contacted">Contacted</option>
+            <option value="completed">Completed</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+        </div>
+        <div id="orders-container" class="order-list">
+          <div class="empty-state">
+            <div class="loader" style="margin: 0 auto 16px"></div>
+            <p>Loading orders...</p>
+          </div>
+        </div>
+      </section>
+
+      <section id="tab-users" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">REGISTERED <span class="accent">USERS</span></h1>
+          <span class="badge-soft" id="users-count">0 users</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Fingerprint</th>
+                <th>Status</th>
+                <th>Last Seen</th>
+                <th style="text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="users-tbody">
+              <tr><td colspan="6" style="text-align:center; padding: 40px; color: var(--text-dim);">Loading users...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-admins" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">ADMIN <span class="accent">MANAGEMENT</span></h1>
+        </div>
+        <div class="scanline-frame" style="padding: 20px; margin-bottom: 20px; max-width: 720px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <h3 style="font-family: var(--font-display); letter-spacing: 2px; margin-bottom: 8px; font-size: 1.1rem;">// HOW IT WORKS</h3>
+          <p style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; margin: 0;">
+            The <strong style="color: var(--secondary);">OWNER</strong> is permanent and cannot be removed.
+            You can promote any user to admin from the <strong>Users</strong> tab using the <strong>PROMOTE</strong> button.
+            Use the list below to remove admin access.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Email</th>
+                <th>Role</th>
+                <th style="text-align:right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="admins-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-blocks" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">BLOCKED <span class="accent">DEVICES</span></h1>
+          <button class="btn btn-secondary" id="add-block-btn">+ BLOCK FINGERPRINT</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Fingerprint ID</th>
+                <th>Reason</th>
+                <th>User Agent</th>
+                <th>Blocked At</th>
+                <th style="text-align:right">Action</th>
+              </tr>
+            </thead>
+            <tbody id="blocks-tbody">
+              <tr><td colspan="5" style="text-align:center; padding: 40px; color: var(--text-dim);">Loading block list...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="tab-telegram" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">TELEGRAM <span class="accent">NOTIFICATIONS</span></h1>
+        </div>
+        <div id="telegram-status" class="config-status disconnected">
+          <span class="dot"></span>
+          <span>Checking configuration...</span>
+        </div>
+        <div class="scanline-frame" style="padding: 24px; position: relative; max-width: 640px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <h3 style="font-family: var(--font-display); letter-spacing: 2px; margin-bottom: 16px; font-size: 1.1rem;">// BOT CONFIGURATION</h3>
+          <form id="telegram-form" class="config-form" autocomplete="off">
+            <div class="form-group">
+              <label for="tg-token">Bot Token</label>
+              <input type="password" id="tg-token" placeholder="1234567890:ABCdefGHIjklMNOpqrsTUVwxyz" autocomplete="off" />
+            </div>
+            <div class="form-group">
+              <label for="tg-chat">Chat ID</label>
+              <input type="text" id="tg-chat" placeholder="7774150189" autocomplete="off" />
+            </div>
+            <div class="form-group" style="display: flex; align-items: center; gap: 10px;">
+              <input type="checkbox" id="tg-enabled" style="width: auto; margin: 0;" checked />
+              <label for="tg-enabled" style="margin: 0;">Send notifications on new orders</label>
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="submit" class="btn btn-primary">SAVE</button>
+              <button type="button" class="btn btn-ghost" id="tg-test-btn">SEND TEST</button>
+            </div>
+          </form>
+          <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.85rem; color: var(--text-dim); line-height: 1.6;">
+            <strong style="color: var(--primary);">// How to set up:</strong><br />
+            1. Open Telegram, search for <code style="color:var(--accent)">@BotFather</code><br />
+            2. Send <code style="color:var(--accent)">/newbot</code> and follow the steps<br />
+            3. Copy the Bot Token and paste above<br />
+            4. Open your bot and press Start<br />
+            5. Visit <code style="color:var(--accent)">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> to find your chat_id<br />
+            6. Paste the chat_id and save
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="product-form-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2 id="form-title">// New Product</h2>
+      <form id="product-form" novalidate>
+        <input type="hidden" id="edit-id" />
+        <div class="form-group">
+          <label>Product Image</label>
+          <div class="file-upload" id="file-drop">
+            <input type="file" id="product-image" accept="image/jpeg,image/png,image/webp" />
+            <div id="upload-prompt">&#128190; <strong>Click or drop image</strong>
+              <div class="hint">PNG, JPG, WEBP · Max ~1MB (auto-compressed)</div>
+            </div>
+            <img id="image-preview" class="preview" alt="Preview" style="display:none" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="product-title">Title</label>
+          <input type="text" id="product-title" required maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label for="product-desc">Description</label>
+          <textarea id="product-desc" required maxlength="500"></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="product-price">Price (EGP)</label>
+            <input type="number" id="product-price" required min="0" step="0.01" inputmode="decimal" />
+          </div>
+          <div class="form-group">
+            <label for="product-category">Category</label>
+            <input type="text" id="product-category" maxlength="50" />
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
+          <button type="submit" class="btn btn-primary" id="save-btn">SAVE PRODUCT</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="block-form-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2>// Block Device</h2>
+      <form id="block-form" novalidate>
+        <div class="form-group">
+          <label for="block-id">Fingerprint ID</label>
+          <input type="text" id="block-id" required maxlength="100" />
+        </div>
+        <div class="form-group">
+          <label for="block-reason">Reason</label>
+          <input type="text" id="block-reason" required maxlength="200" />
+        </div>
+        <div class="form-group">
+          <label for="block-ua">User Agent (optional)</label>
+          <input type="text" id="block-ua" maxlength="300" />
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
+          <button type="submit" class="btn btn-danger">BLOCK DEVICE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast-container" class="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+  <div id="diagnostics-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2>// System Diagnostics</h2>
+      <div id="diag-content" style="font-family: var(--font-mono); font-size: 0.85rem; line-height: 1.8; color: var(--text);"></div>
+      <div class="form-actions">
+        <button class="btn btn-ghost" id="run-diag-btn">RUN TESTS</button>
+        <button class="btn btn-ghost" data-close>CLOSE</button>
+      </div>
+    </div>
+  </div>
+
+  <button id="diag-fab" style="position: fixed; bottom: 20px; right: 20px; width: 50px; height: 50px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--primary); color: var(--primary); font-size: 1.4rem; z-index: 99; box-shadow: var(--glow-cyan);" title="System Diagnostics" aria-label="System Diagnostics">🛠</button>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fingerprintjs/fingerprintjs@3/dist/fp.min.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

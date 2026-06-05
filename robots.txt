@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /account.html
+Disallow: /404.html
+Disallow: /admin
+Disallow: /account
+
+Sitemap: https://yossefamr.github.io/SynaxMatrixweb/sitemap.xml
