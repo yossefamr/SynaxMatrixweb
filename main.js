@@ -931,36 +931,8 @@
     if (telegramConfig.enabled === false) return;
     if (!invoice || !invoice.summary) return;
     var s = invoice.summary;
-    var jsonPayload = {
-      event: "invoice.generated",
-      timestamp: new Date().toISOString(),
-      invoice_id: s.invoiceId || null,
-      order_id: s.orderId || null,
-      customer: {
-        name: order.customerName || null,
-        email: order.customerEmail || null,
-        phone: order.customerPhone || null
-      },
-      service: {
-        id: order.productId || null,
-        title: s.product || null,
-        category: order.productCategory || null,
-        price_egp: Number(order.productPrice || 0),
-        currency: "EGP"
-      },
-      payment: {
-        method_id: (order.paymentMethod && order.paymentMethod.id) || null,
-        method_name: (order.paymentMethod && order.paymentMethod.name) || null,
-        account_number: (order.paymentMethod && order.paymentMethod.accountNumber) || null,
-        transaction_ref: order.paymentRef || null,
-        paid: !!order.paymentRef
-      },
-      status: order.status || "pending",
-      pdf_filename: invoice.filename
-    };
-    var jsonStr = JSON.stringify(jsonPayload, null, 2);
     var html =
-      "🧾 <b>INVOICE GENERATED</b>\n" +
+      "🧾 <b>INVOICE READY</b>\n" +
       "━━━━━━━━━━━━━━━━━━━━\n" +
       "📄 <b>Invoice:</b> <code>" + escapeHtml(s.invoiceId || "—") + "</code>\n" +
       "📦 <b>Order:</b> <code>" + escapeHtml(s.orderId || "—") + "</code>\n" +
@@ -968,10 +940,9 @@
       "💼 <b>Service:</b> " + escapeHtml(s.product || "—") + "\n" +
       "💰 <b>Total:</b> <b>" + escapeHtml(s.price || "—") + "</b>\n" +
       "💳 <b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + "\n" +
-      (order.paymentRef ? "🔖 <b>TXN Ref:</b> <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "") +
+      (order.paymentRef ? "🔖 <b>TXN Ref:</b> <code>" + escapeHtml(order.paymentRef) + "</code>\n" : "⏳ <b>Payment:</b> <i>pending — not yet paid</i>\n") +
       "📅 <b>Date:</b> " + escapeHtml(s.date || "—") + "\n" +
-      "━━━━━━━━━━━━━━━━━━━━\n" +
-      "<pre>📦 JSON:\n" + escapeHtml(jsonStr) + "</pre>";
+      "━━━━━━━━━━━━━━━━━━━━";
     var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=HTML&text=" + encodeURIComponent(html);
     try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* */ }
   }
@@ -1019,6 +990,20 @@
     return { ok: false };
   }
 
+  async function sendTelegramText(chatId, html) {
+    if (!telegramConfig || !telegramConfig.botToken) return { ok: false, reason: "missing-config" };
+    if (telegramConfig.enabled === false) return { ok: false, reason: "telegram-disabled" };
+    var cleanChat = String(chatId).replace(/[\s\-]/g, "");
+    if (!/^\d{4,20}$/.test(cleanChat)) return { ok: false, reason: "bad-chatid" };
+    try {
+      var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + cleanChat + "&parse_mode=HTML&text=" + encodeURIComponent(html);
+      await fetch(url, { mode: "no-cors" });
+      return { ok: true, method: "text" };
+    } catch (e) {
+      return { ok: false, reason: "network" };
+    }
+  }
+
   async function sendTelegramDocument(chatId, blob, filename, caption) {
     if (!telegramConfig || !telegramConfig.botToken || !chatId || !blob) return { ok: false, reason: "missing-config" };
     if (telegramConfig.enabled === false) return { ok: false, reason: "telegram-disabled" };
@@ -1026,9 +1011,27 @@
     if (!/^\d{4,20}$/.test(String(chatId))) return { ok: false, reason: "bad-chatid" };
 
     var cleanName = (filename || "invoice.pdf").replace(/[^\w.\-]/g, "_");
-    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendDocument";
 
-    function buildFormData() {
+    try {
+      var up = await uploadToTempHost(blob, cleanName);
+      if (up && up.ok) {
+        var linkText =
+          (caption ? caption + "\n\n" : "") +
+          "━━━━━━━━━━━━━━━━━━━━\n" +
+          "📄 <b>Invoice PDF:</b>\n" +
+          "<a href=\"" + up.url + "\">⬇ Download Invoice (PDF)</a>\n" +
+          "<i>Hosted on " + up.host + " · expires in 24h</i>";
+        if (linkText.length > 4000) linkText = linkText.slice(0, 4000) + "...";
+        var res = await sendTelegramText(chatId, linkText);
+        if (res && res.ok) return { ok: true, method: "link-upload", url: up.url, host: up.host };
+        return { ok: false, reason: "text-failed", url: up.url, host: up.host };
+      }
+    } catch (e) {
+      console.warn("uploadToTempHost failed in sendTelegramDocument:", e && e.message);
+    }
+
+    try {
+      var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendDocument";
       var fd = new FormData();
       fd.append("chat_id", String(chatId));
       fd.append("document", blob, cleanName);
@@ -1036,56 +1039,11 @@
         fd.append("caption", String(caption).slice(0, 1024));
         fd.append("parse_mode", "HTML");
       }
-      return fd;
-    }
-
-    try {
-      var res = await fetch(url, {
-        method: "POST",
-        mode: "cors",
-        body: buildFormData()
-      });
-      if (res.ok) {
-        try {
-          var data = await res.json();
-          if (data && data.ok) return { ok: true, method: "cors" };
-          console.warn("Telegram sendDocument api-error:", data && data.description);
-          return { ok: false, reason: "api-error", detail: data && data.description };
-        } catch (e) {
-          return { ok: true, method: "cors" };
-        }
-      } else {
-        return { ok: false, reason: "http-" + res.status };
-      }
-    } catch (corsErr) {
-      console.warn("sendTelegramDocument CORS attempt failed, trying no-cors fallback:", corsErr && corsErr.message);
-      try {
-        await fetch(url, {
-          method: "POST",
-          mode: "no-cors",
-          body: buildFormData()
-        });
-        return { ok: true, method: "no-cors" };
-      } catch (fallbackErr) {
-        console.warn("sendTelegramDocument no-cors fallback also failed, uploading to temp host:", fallbackErr && fallbackErr.message);
-        try {
-          var up = await uploadToTempHost(blob, cleanName);
-          if (up && up.ok) {
-            var linkCaption = (caption ? caption + "\n\n" : "") + "📄 <b>Invoice PDF:</b> <a href=\"" + up.url + "\">" + up.url + "</a>\n(<i>hosted on " + up.host + "</i>)";
-            if (linkCaption.length > 1024) linkCaption = linkCaption.slice(0, 1020) + "...";
-            var fd2 = new FormData();
-            fd2.append("chat_id", String(chatId));
-            fd2.append("caption", linkCaption);
-            fd2.append("parse_mode", "HTML");
-            await fetch("https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage", { method: "POST", mode: "no-cors", body: fd2 });
-            return { ok: true, method: "link-fallback", url: up.url, host: up.host };
-          }
-          return { ok: false, reason: "all-failed" };
-        } catch (e3) {
-          console.error("sendTelegramDocument all attempts failed:", e3);
-          return { ok: false, reason: "all-failed" };
-        }
-      }
+      var res2 = await fetch(url, { method: "POST", mode: "no-cors", body: fd });
+      return { ok: true, method: "no-cors" };
+    } catch (e2) {
+      console.error("sendTelegramDocument all paths failed:", e2);
+      return { ok: false, reason: "all-failed" };
     }
   }
 

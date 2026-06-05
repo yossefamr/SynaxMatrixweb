@@ -28,7 +28,7 @@
 
   if (window.db && window.db.settings) {
     try {
-      window.db.settings({ ignoreUndefinedProperties: true }, { merge: true });
+      window.db.settings({ ignoreUndefinedProperties: true });
     } catch (e) { /* settings only allowed once */ }
   }
 
