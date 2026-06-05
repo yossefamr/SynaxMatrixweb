@@ -721,7 +721,12 @@
     var tbody = $("#coupons-tbody");
     if (!tbody) return;
     if (!coupons.length) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center; padding: 30px; color: var(--text-dim);">No coupons yet. Click <strong>🌱 SEED DEFAULTS</strong> to add 3 starter coupons, or <strong>+ NEW COUPON</strong> to create your own.</td></tr>';
+      tbody.innerHTML =
+        '<tr><td colspan="8" style="text-align:center; padding: 36px 20px; color: var(--text-dim);">' +
+          '<div style="font-size: 2.2rem; margin-bottom: 8px; opacity: 0.5;">🎟️</div>' +
+          '<div style="margin-bottom: 6px; color: var(--text);">No coupons yet</div>' +
+          '<div style="font-size: 0.82rem;">Click <strong style="color: var(--primary);">🌱 SEED DEFAULTS</strong> to add 3 starter coupons, or <strong style="color: var(--primary);">+ NEW COUPON</strong> to create your own.</div>' +
+        '</td></tr>';
       return;
     }
     tbody.innerHTML = "";
@@ -778,12 +783,23 @@
     var minEl = $("#coupon-min");
     var maxEl = $("#coupon-max-uses");
     var validEl = $("#coupon-valid-days");
+    var dateEl = $("#coupon-valid-date");
     var descEl = $("#coupon-description");
     var enabledEl = $("#coupon-enabled");
     var suffix = document.getElementById("coupon-value-suffix");
 
     function updateSuffix() {
       if (suffix) suffix.textContent = typeEl.value === "fixed" ? "(EGP)" : "(%)";
+    }
+
+    function formatDateForInput(ts) {
+      if (!ts) return "";
+      var d = ts.toDate ? ts.toDate() : new Date(ts);
+      if (!(d instanceof Date) || isNaN(d.getTime())) return "";
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, "0");
+      var dd = String(d.getDate()).padStart(2, "0");
+      return y + "-" + m + "-" + dd;
     }
 
     if (coupon) {
@@ -795,6 +811,7 @@
       if (minEl) minEl.value = coupon.minOrderAmount || "";
       if (maxEl) maxEl.value = coupon.maxUses || "";
       if (validEl) validEl.value = "";
+      if (dateEl) dateEl.value = formatDateForInput(coupon.validUntil);
       if (descEl) descEl.value = coupon.description || "";
       if (enabledEl) enabledEl.checked = coupon.enabled !== false;
     } else {
@@ -806,6 +823,7 @@
       if (minEl) minEl.value = "";
       if (maxEl) maxEl.value = "";
       if (validEl) validEl.value = "";
+      if (dateEl) dateEl.value = "";
       if (descEl) descEl.value = "";
       if (enabledEl) enabledEl.checked = true;
     }
@@ -831,7 +849,8 @@
     if (maxUses !== null && (!isFinite(maxUses) || maxUses < 0)) { showToast("Max uses must be a positive number", "error"); return; }
     var validDaysRaw = ($("#coupon-valid-days") && $("#coupon-valid-days").value || "").trim();
     var validDays = validDaysRaw ? parseInt(validDaysRaw, 10) : null;
-    var description = String(($("#coupon-description") && $("#coupon-description").value) || "").replace(/[<>]/g, "").trim().slice(0, 200);
+    var validDateRaw = ($("#coupon-valid-date") && $("#coupon-valid-date").value || "").trim();
+    var description = String(($("#coupon-description") && $("#coupon-description").value || "").replace(/[<>]/g, "").trim().slice(0, 200);
     var enabled = !!(($("#coupon-enabled") && $("#coupon-enabled").checked));
 
     try {
@@ -842,10 +861,20 @@
         description: description, enabled: enabled, updatedAt: ts,
         updatedBy: currentUser ? currentUser.email : null
       };
-      if (validDays !== null && isFinite(validDays) && validDays > 0) {
-        var dt = new Date();
-        dt.setDate(dt.getDate() + validDays);
-        payload.validUntil = firebase.firestore.Timestamp.fromDate(dt);
+      var expiryDate = null;
+      if (validDateRaw) {
+        var parsed = new Date(validDateRaw + "T23:59:59");
+        if (!isNaN(parsed.getTime())) expiryDate = parsed;
+      }
+      if (!expiryDate && validDays !== null && isFinite(validDays) && validDays > 0) {
+        expiryDate = new Date();
+        expiryDate.setDate(expiryDate.getDate() + validDays);
+        expiryDate.setHours(23, 59, 59, 0);
+      }
+      if (expiryDate) {
+        payload.validUntil = firebase.firestore.Timestamp.fromDate(expiryDate);
+      } else if (id) {
+        payload.validUntil = firebase.firestore.FieldValue.delete();
       }
       if (id) {
         await db.collection(COLLECTIONS.COUPONS).doc(id).update(payload);

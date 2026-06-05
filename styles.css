@@ -592,6 +592,10 @@ select {
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } }
 
+.form-hint { font-size: 0.72rem; color: var(--text-muted); margin-top: 4px; line-height: 1.4; }
+.modal input[type="date"] { font-family: var(--font-mono); color-scheme: dark; }
+
+
 .file-upload {
   position: relative;
   border: 2px dashed var(--border);
