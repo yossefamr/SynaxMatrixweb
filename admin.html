@@ -94,6 +94,12 @@
       <div class="nav-item" data-tab="telegram">
         <span class="icon">&#9992;</span> Telegram
       </div>
+      <div class="nav-item" data-tab="activity">
+        <span class="icon">&#128064;</span> Activity
+      </div>
+      <div class="nav-item" data-tab="system">
+        <span class="icon">&#9881;</span> System
+      </div>
       <div class="sidebar-footer">
         <div class="user-badge">
           <div class="avatar" id="user-avatar">A</div>
@@ -285,6 +291,92 @@
             5. Visit <code style="color:var(--accent)">https://api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</code> to find your chat_id<br />
             6. Paste the chat_id and save
           </div>
+        </div>
+      </section>
+
+      <section id="tab-activity" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">LIVE <span class="accent">ACTIVITY</span></h1>
+          <span class="badge-soft" id="visitors-count">0 visits</span>
+        </div>
+        <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem;">
+          // Last 10 site visits captured by the visitor log. Updates in real-time.
+        </p>
+        <div class="table-wrap" style="margin-bottom: 32px;">
+          <table>
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Page</th>
+                <th>Visitor</th>
+                <th>Device FP</th>
+                <th>User Agent</th>
+              </tr>
+            </thead>
+            <tbody id="visitors-tbody">
+              <tr><td colspan="5" style="text-align:center; padding: 30px; color: var(--text-dim);">Loading visitor log...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="dash-header">
+          <h2 class="dash-title" style="font-size: 1.2rem;">ADMIN <span class="accent">AUDIT LOG</span></h2>
+        </div>
+        <p style="color: var(--text-dim); margin-bottom: 20px; font-size: 0.9rem;">
+          // Recent admin actions (login, product CRUD, blocks, promotions, maintenance).
+        </p>
+        <div id="audit-log" class="scanline-frame" style="position: relative; padding: 20px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div style="text-align:center; padding: 20px; color: var(--text-dim);">Click to load...</div>
+        </div>
+      </section>
+
+      <section id="tab-system" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">SYSTEM <span class="accent">CONTROL</span></h1>
+          <a href="status.html" class="btn btn-ghost" target="_blank">📊 PUBLIC STATUS PAGE</a>
+        </div>
+
+        <div id="maintenance-status" class="config-status connected" style="margin-bottom: 20px;">
+          <span class="dot"></span>
+          <span>Loading status...</span>
+        </div>
+
+        <div class="scanline-frame" style="padding: 24px; position: relative; max-width: 720px; margin-bottom: 24px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <h3 style="font-family: var(--font-display); letter-spacing: 2px; margin-bottom: 8px; font-size: 1.1rem;">// ⚡ QUICK COMMAND — SHUTDOWN SITE</h3>
+          <p id="maintenance-desc" style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.6; margin-bottom: 16px;">
+            Toggle ON to put all public pages into maintenance mode. Useful if you detect an attack or need to take the site offline fast — no code change required.
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-danger" id="maint-quick-on">⚠ SHUTDOWN — ENABLE MAINTENANCE</button>
+            <button type="button" class="btn btn-ghost" id="maint-quick-off">✓ BRING SITE BACK ONLINE</button>
+          </div>
+        </div>
+
+        <div class="scanline-frame" style="padding: 24px; position: relative; max-width: 720px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <h3 style="font-family: var(--font-display); letter-spacing: 2px; margin-bottom: 16px; font-size: 1.1rem;">// MAINTENANCE CONFIGURATION</h3>
+          <form id="maintenance-form" class="config-form" autocomplete="off">
+            <div class="form-group" style="display: flex; align-items: center; gap: 12px;">
+              <label for="maintenance-toggle" style="margin: 0; cursor: pointer;">Maintenance Mode</label>
+              <input type="checkbox" id="maintenance-toggle" style="width: auto; margin: 0; transform: scale(1.4); cursor: pointer;" />
+            </div>
+            <div class="form-group">
+              <label for="maintenance-message">Visitor Message</label>
+              <textarea id="maintenance-message" maxlength="500" placeholder="We're performing scheduled maintenance..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="maintenance-eta">ETA / Estimated Time</label>
+              <input type="text" id="maintenance-eta" maxlength="80" placeholder="e.g. 30 minutes, 2 hours, Soon" />
+            </div>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+              <button type="submit" class="btn btn-primary">SAVE CONFIG</button>
+            </div>
+          </form>
         </div>
       </section>
     </main>

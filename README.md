@@ -32,10 +32,38 @@ Hidden from public — only visible when an admin account is signed in.
 - **Products**: Add / Edit / Delete with image upload (auto-compressed to <950KB base64)
 - **Orders**: View, filter, mark contacted / completed / cancelled, delete
 - **Users**: Browse all registered users, see fingerprints, promote / demote / delete
+- **Activity**: Live visitor log (last 10 site visits) + admin audit log
 - **Admins**: Manage admin roster (Owner is permanent)
 - **Block List**: Ban / unban device fingerprints
 - **Telegram**: Configure bot token & chat ID for order notifications
-- **System Diagnostics** (🛠 floating button): Test permissions, verify owner status
+- **System**: Maintenance mode toggle (Quick Command "Shutdown" + visitor message + ETA) and link to public status page
+- **System Diagnostics** (🛠 floating button): Test permissions, verify owner status, check rate-limit config, run permission probes
+
+### 📊 Public Status Page
+- Real-time health check of all 6 services (Storefront, Database, Authentication, Telegram Bot, Admin Panel, Security Layer)
+- Live latency ping to Firestore and Telegram `getMe` endpoint
+- 4 live metrics (Products, Users, Orders, Online)
+- Recent activity feed (last 8 events: orders + admin actions)
+- Auto-refresh every 30 seconds
+- Public URL: `status.html` (no auth required)
+
+### 🛠 Maintenance Mode (Quick Command)
+- Toggle ON from admin → public pages redirect to a polished maintenance screen
+- Auto-polls every 30s and returns users to the live site when you turn it OFF
+- Customizable visitor message and ETA
+- Admin pages (admin.html, account.html, status.html, 404.html) remain accessible
+- Auto-shown if admin enables it from any device
+
+### 🛡️ Visitor Log
+- Every page view is logged to the `visitors` collection (page, fingerprint, email, user agent)
+- Throttled to 1 entry per page per 10s per session (prevents log spam)
+- Visible in admin → Activity tab as a real-time table
+
+### 🚦 Rate Limiting
+- 1 order per device per 60s (keyed by fingerprint in localStorage)
+- 5 failed login attempts → 60s lockout
+- Honeypot field on order form rejects bots silently
+- Configurable in `firebase-config.js` → `window.SECURITY`
 
 ### 🛡️ Security
 - **Device fingerprinting** via FingerprintJS — every banned device is blocked on every page
@@ -46,13 +74,14 @@ Hidden from public — only visible when an admin account is signed in.
 - **Referrer-Policy: strict-origin-when-cross-origin**
 - **Permissions-Policy** disabling geolocation, camera, mic, payment
 - **Honeypot field** on order form — silently rejects bots
-- **Rate limiting** on order submission (30s cooldown) and login (5 attempts → 60s lockout)
+- **Rate limiting** on order submission (60s cooldown per device) and login (5 attempts → 60s lockout)
 - **Input validation** — email/phone format, URL filtering, max-length checks
 - **HTML escaping** on all user-provided content (XSS protection)
 - **No Firebase Storage** required — images stored as compressed base64 in Firestore
 - **Admin login lockout** with localStorage-backed counter
 - **Audit log** of admin actions (best-effort write to `config/auditLog/entries`)
 - **Quick block** from user table — ban a user's device with one click
+- **Maintenance mode** for instant site lockdown during incidents
 
 ### 📱 Mobile & Desktop Ready
 - Hamburger menu on small screens
@@ -92,11 +121,15 @@ SynaxMatrixweb/
 ├── admin.html          # Admin login + dashboard
 ├── account.html        # Customer account panel
 ├── 404.html            # Access-denied landing
+├── status.html         # Public system status page
+├── maintenance.html    # Maintenance mode landing
 ├── styles.css          # All styles (cyber theme + responsive)
 ├── firebase-config.js  # Firebase init + constants
 ├── main.js             # Storefront logic
 ├── admin.js            # Dashboard logic + diagnostics
 ├── account.js          # Customer panel logic
+├── maintenance.js      # Maintenance page polling logic
+├── status.js           # Status page health-check logic
 ├── robots.txt          # SEO crawler rules
 ├── .nojekyll           # Tells GitHub Pages to serve as-is
 ├── .gitignore          # Excludes OS / IDE files

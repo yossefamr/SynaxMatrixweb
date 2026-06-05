@@ -11,6 +11,7 @@
   var ordersListener = null;
   var usersListener = null;
   var adminListListener = null;
+  var visitorsListener = null;
   var currentOrderFilter = "all";
   var currentOrders = [];
   var adminEmailsCache = [];
@@ -205,6 +206,16 @@
         renderUsers(users);
         updateUserStats(users);
       }, function (err) { console.error("Users listener error:", err); });
+
+    if (visitorsListener) visitorsListener();
+    visitorsListener = db.collection(COLLECTIONS.VISITORS)
+      .orderBy("timestamp", "desc")
+      .limit(10)
+      .onSnapshot(function (snap) {
+        var visitors = [];
+        snap.forEach(function (d) { visitors.push({ id: d.id, ...d.data() }); });
+        renderVisitors(visitors);
+      }, function (err) { console.warn("Visitors listener error:", err); });
   }
 
   function stopListeners() {
@@ -212,6 +223,7 @@
     if (blocksListener) { blocksListener(); blocksListener = null; }
     if (ordersListener) { ordersListener(); ordersListener = null; }
     if (usersListener) { usersListener(); usersListener = null; }
+    if (visitorsListener) { visitorsListener(); visitorsListener = null; }
   }
 
   function updateUserStats(users) {
@@ -358,7 +370,7 @@
       var fp = u.fingerprint || "—";
       var fpDisplay = fp === "—" ? "—" : (fp.length > 20 ? fp.slice(0, 20) + "…" : fp);
       var fpTitle = fp === "—" ? "No fingerprint recorded" : fp;
-      var fpChanged = u.fingerprintChangedAt ? " <span style='color:var(--warn);' title='Fingerprint changed' title='FP changed'>⚠</span>" : "";
+      var fpChanged = u.fingerprintChangedAt ? " <span style='color:var(--warn);' title='FP changed'>⚠</span>" : "";
       var tr = document.createElement("tr");
       tr.innerHTML =
         '<td style="font-weight: 600;">' + escapeHtml(u.displayName || "—") +
@@ -438,6 +450,71 @@
         if (val) { try { navigator.clipboard.writeText(val).then(function () { showToast("Copied", "success"); }); } catch (e) {} }
       });
     });
+  }
+
+  function renderVisitors(visitors) {
+    var tbody = $("#visitors-tbody");
+    if (!tbody) return;
+    if (!visitors.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 30px; color: var(--text-dim);">No visits recorded yet. The log fills as people browse the site.</td></tr>';
+      var countEl = $("#visitors-count");
+      if (countEl) countEl.textContent = "0 visits";
+      return;
+    }
+    tbody.innerHTML = "";
+    var countEl = $("#visitors-count");
+    if (countEl) countEl.textContent = visitors.length + " visit" + (visitors.length === 1 ? "" : "s");
+    visitors.forEach(function (v) {
+      var tr = document.createElement("tr");
+      var isAdminVisit = v.isAdmin ? '<span class="badge-soft" style="background:rgba(176,38,255,0.15); color:var(--secondary); margin-left:6px;">ADMIN</span>' : '';
+      var isLogged = v.isLoggedIn ? '<span class="badge-soft success" style="margin-left:6px;">LOGGED IN</span>' : '<span class="badge-soft" style="margin-left:6px;">GUEST</span>';
+      tr.innerHTML =
+        '<td style="white-space:nowrap; color:var(--text-dim); font-size:0.85rem;" title="' + escapeHtml(formatDate(v.timestamp)) + '">' + escapeHtml(timeAgo(v.timestamp)) + '</td>' +
+        '<td><span class="badge-soft" style="background:rgba(0,240,255,0.1);">' + escapeHtml(v.page || "—") + '</span></td>' +
+        '<td style="word-break:break-all;">' + escapeHtml(v.email || "—") + isAdminVisit + isLogged + '</td>' +
+        '<td><span class="fingerprint-cell" title="' + escapeHtml(v.fingerprint || "—") + '" data-copy="' + escapeHtml(v.fingerprint || "") + '">' + escapeHtml(((v.fingerprint || "—") + "").slice(0, 16)) + '…</span></td>' +
+        '<td style="color:var(--text-dim); font-size:0.8rem; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="' + escapeHtml(v.userAgent || "—") + '">' + escapeHtml((v.userAgent || "—").slice(0, 60)) + '</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll(".fingerprint-cell").forEach(function (cell) {
+      cell.addEventListener("click", function () {
+        var val = cell.getAttribute("data-copy");
+        if (val) { try { navigator.clipboard.writeText(val).then(function () { showToast("Copied", "success"); }); } catch (e) {} }
+      });
+    });
+  }
+
+  function renderAuditLog() {
+    var container = $("#audit-log");
+    if (!container) return;
+    container.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-dim);">Loading...</div>';
+    db.collection("config").doc("auditLog").collection("entries")
+      .orderBy("ts", "desc")
+      .limit(20)
+      .get()
+      .then(function (snap) {
+        if (snap.empty) {
+          container.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-dim);">No admin actions logged yet.</div>';
+          return;
+        }
+        container.innerHTML = "";
+        var list = document.createElement("div");
+        list.className = "audit-list";
+        snap.forEach(function (d) {
+          var data = d.data();
+          var item = document.createElement("div");
+          item.className = "audit-item fade-in";
+          item.innerHTML =
+            '<div class="audit-time">' + escapeHtml(timeAgo(data.ts)) + '</div>' +
+            '<div class="audit-action">' + escapeHtml(data.action || "—") + '</div>' +
+            '<div class="audit-email">' + escapeHtml(data.email || "—") + '</div>';
+          list.appendChild(item);
+        });
+        container.appendChild(list);
+      })
+      .catch(function (err) {
+        container.innerHTML = '<div style="text-align:center; padding: 20px; color: var(--text-dim);">Audit log unavailable: ' + escapeHtml(err.message) + '</div>';
+      });
   }
 
   function updateStats(products) {
@@ -727,6 +804,61 @@
     } catch (e) { showToast("Network error: " + e.message, "error"); }
   }
 
+  async function loadMaintenanceConfig() {
+    try {
+      var doc = await db.collection(COLLECTIONS.CONFIG).doc("maintenance").get();
+      var data = doc.exists ? doc.data() : { enabled: false };
+      var toggle = $("#maintenance-toggle");
+      var msg = $("#maintenance-message");
+      var eta = $("#maintenance-eta");
+      if (toggle) toggle.checked = data.enabled === true;
+      if (msg) msg.value = data.message || "";
+      if (eta) eta.value = data.etaText || "";
+      updateMaintenanceUI(data.enabled === true);
+    } catch (e) { console.warn("loadMaintenanceConfig failed:", e); }
+  }
+
+  function updateMaintenanceUI(enabled) {
+    var status = $("#maintenance-status");
+    var desc = $("#maintenance-desc");
+    if (status) {
+      status.className = "config-status " + (enabled ? "disconnected" : "connected");
+      status.innerHTML = '<span class="dot"></span><span>' + (enabled ? "⚠ MAINTENANCE MODE ACTIVE — public pages are offline" : "✓ All public pages live") + '</span>';
+    }
+    if (desc) desc.textContent = enabled ? "Visitors see a maintenance page until you disable this." : "Toggle ON to put all public pages into maintenance mode.";
+  }
+
+  async function saveMaintenanceConfig(e) {
+    e.preventDefault();
+    var enabled = $("#maintenance-toggle").checked;
+    var message = $("#maintenance-message").value.trim() || (window.MAINTENANCE_DEFAULT && window.MAINTENANCE_DEFAULT.message) || "We're performing maintenance.";
+    var etaText = $("#maintenance-eta").value.trim() || "Soon";
+    try {
+      try { sessionStorage.removeItem("cy_maint"); } catch (e2) {}
+      await db.collection(COLLECTIONS.CONFIG).doc("maintenance").set({
+        enabled: enabled,
+        message: message,
+        etaText: etaText,
+        eta: null,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser ? currentUser.email : null
+      }, { merge: true });
+      logAdminEvent("maintenance_" + (enabled ? "ON" : "OFF"), etaText);
+      showToast("Maintenance mode " + (enabled ? "ENABLED" : "DISABLED"), "success", enabled ? "⚠ SITE OFFLINE" : "✓ SITE LIVE");
+      updateMaintenanceUI(enabled);
+    } catch (err) {
+      showToast("Save failed: " + err.message, "error");
+    }
+  }
+
+  function quickMaintenance(enabled) {
+    var toggle = $("#maintenance-toggle");
+    if (toggle) {
+      toggle.checked = enabled;
+      $("#maintenance-form").dispatchEvent(new Event("submit", { cancelable: true, bubbles: true }));
+    }
+  }
+
   function checkAdminLoginLock() {
     try {
       var until = parseInt(localStorage.getItem("cy_admin_lockout_until") || "0", 10);
@@ -809,11 +941,13 @@
         $$(".nav-item").forEach(function (n) { n.classList.remove("active"); });
         item.classList.add("active");
         var tab = item.dataset.tab;
-        ["products", "orders", "users", "admins", "blocks", "telegram"].forEach(function (t) {
+        ["products", "orders", "users", "admins", "blocks", "telegram", "activity", "system"].forEach(function (t) {
           var sec = $("#tab-" + t);
           if (sec) sec.style.display = t === tab ? "block" : "none";
         });
         if (tab === "admins") renderAdminsList();
+        if (tab === "activity") renderAuditLog();
+        if (tab === "system") loadMaintenanceConfig();
       });
     });
     var filter = $("#order-filter");
@@ -853,6 +987,13 @@
     $("#block-form").addEventListener("submit", blockDevice);
     $("#telegram-form").addEventListener("submit", saveTelegramConfig);
     $("#tg-test-btn").addEventListener("click", testTelegram);
+    var maintForm = $("#maintenance-form");
+    if (maintForm) maintForm.addEventListener("submit", saveMaintenanceConfig);
+
+    var mOn = $("#maint-quick-on");
+    var mOff = $("#maint-quick-off");
+    if (mOn) mOn.addEventListener("click", function () { if (confirm("Put the site into maintenance mode?\nAll public pages will show the maintenance screen.")) quickMaintenance(true); });
+    if (mOff) mOff.addEventListener("click", function () { if (confirm("Bring the site back online?")) quickMaintenance(false); });
 
     var fileInput = $("#product-image");
     var preview = $("#image-preview");
@@ -933,7 +1074,7 @@
     var u = currentUser;
 
     lines.push("═══════════════════════════════════════");
-    lines.push("       SYSTEM DIAGNOSTICS v1.0");
+    lines.push("       SYSTEM DIAGNOSTICS v2.0");
     lines.push("═══════════════════════════════════════");
     lines.push("");
 
@@ -960,6 +1101,26 @@
     lines.push("📋 ADMIN LIST (config/admins)");
     lines.push("   Emails: " + JSON.stringify(adminEmailsCache));
     lines.push("   isAdminEmail(): " + (isAdminEmail(u.email) ? "✓ TRUE" : "✗ FALSE"));
+    lines.push("");
+
+    lines.push("⚙️ MAINTENANCE MODE");
+    try {
+      var m = await db.collection(COLLECTIONS.CONFIG).doc("maintenance").get();
+      var enabled = m.exists && m.data().enabled === true;
+      lines.push("   Status: " + (enabled ? "⚠ ENABLED" : "✓ DISABLED"));
+      if (m.exists) {
+        var md = m.data();
+        lines.push("   Last updated: " + formatDate(md.updatedAt));
+        lines.push("   Updated by: " + (md.updatedBy || "—"));
+      }
+    } catch (e) { lines.push("   ✗ Could not read: " + e.message); }
+    lines.push("");
+
+    lines.push("🛡️ RATE LIMIT CONFIG");
+    lines.push("   Order cooldown: " + (SECURITY.ORDER_COOLDOWN_MS / 1000) + "s per device");
+    lines.push("   Login max attempts: " + SECURITY.MAX_LOGIN_ATTEMPTS);
+    lines.push("   Login lockout: " + (SECURITY.LOGIN_LOCKOUT_MS / 1000) + "s");
+    lines.push("   Visitor log throttle: " + (SECURITY.VISITOR_LOG_THROTTLE_MS / 1000) + "s");
     lines.push("");
 
     lines.push("🧪 PERMISSION TESTS");
@@ -1001,6 +1162,11 @@
       } else { lines.push("   ⚠ config/admins doc does NOT exist yet"); }
     } catch (e) { lines.push("   ✗ Read config/admins: FAILED — " + e.message); }
 
+    try {
+      var vRead = await db.collection(COLLECTIONS.VISITORS).orderBy("timestamp", "desc").limit(1).get();
+      lines.push("   ✓ Read visitors: SUCCESS (" + vRead.size + " recent)");
+    } catch (e) { lines.push("   ✗ Read visitors: FAILED — " + e.message); }
+
     lines.push("");
     lines.push("═══════════════════════════════════════");
 
@@ -1009,7 +1175,7 @@
       if (l.includes("✗")) color = "var(--danger)";
       else if (l.includes("✓")) color = "var(--accent)";
       else if (l.includes("⚠")) color = "var(--warn)";
-      else if (l.startsWith("═") || l.includes("INFO") || l.includes("CHECK") || l.includes("LIST") || l.includes("TESTS")) color = "var(--primary)";
+      else if (l.startsWith("═") || l.includes("INFO") || l.includes("CHECK") || l.includes("LIST") || l.includes("TESTS") || l.includes("CONFIG") || l.includes("MAINTENANCE")) color = "var(--primary)";
       return '<div style="color:' + color + ';">' + escapeHtml(l) + '</div>';
     }).join("");
   }

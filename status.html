@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#03030a" />
+  <meta name="description" content="Real-time system status for SynaxMatrix services. Check bot uptime, database health, and recent activity." />
+
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://api.telegram.org https://*.googleapis.com; frame-ancestors 'none'; base-uri 'self';" />
+
+  <title>SYSTEM STATUS // SynaxMatrix</title>
+  <link rel="canonical" href="https://yossefamr.github.io/SynaxMatrixweb/status.html" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%93%8A%3C/text%3E%3C/svg%3E" />
+</head>
+<body>
+
+  <a class="skip-link" href="#status-content">Skip to content</a>
+
+  <nav class="navbar" aria-label="Main navigation">
+    <div class="navbar-inner">
+      <a href="index.html" class="brand" aria-label="SynaxMatrix home">SYNAX<span class="dot">.</span>MATRIX</a>
+
+      <button class="nav-toggle" id="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
+        <span></span><span></span><span></span>
+      </button>
+
+      <div class="nav-links" id="nav-links">
+        <a href="index.html">// STORE</a>
+        <a href="status.html" style="color: var(--primary)">// STATUS</a>
+        <a href="account.html">// ACCOUNT</a>
+        <a href="admin.html" class="admin-link" id="admin-link" style="display:none">⚡ ADMIN</a>
+      </div>
+
+      <div class="nav-user" id="nav-user">
+        <a href="index.html" class="btn btn-ghost btn-sm">← STORE</a>
+      </div>
+    </div>
+  </nav>
+
+  <main class="container" id="status-content" style="padding: 40px 0 80px;">
+
+    <section class="status-hero">
+      <div class="status-badge" id="status-badge">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Checking...</span>
+      </div>
+      <h1 class="glitch-text">SYSTEM STATUS</h1>
+      <p class="status-subtitle">// Real-time infrastructure monitoring</p>
+      <div class="status-meta">
+        <span>Last updated: <strong id="last-updated">—</strong></span>
+        <span class="status-meta-divider">·</span>
+        <span>Auto-refresh: <strong>30s</strong></span>
+      </div>
+    </section>
+
+    <section class="status-overall scanline-frame">
+      <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+      <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+      <h2 class="section-title" style="text-align:left; font-size: 1.2rem;">// OVERALL HEALTH</h2>
+      <div class="overall-grid">
+        <div class="overall-stat">
+          <div class="overall-value" id="overall-uptime">99.9%</div>
+          <div class="overall-label">Uptime (30d)</div>
+        </div>
+        <div class="overall-stat">
+          <div class="overall-value" id="overall-incidents">0</div>
+          <div class="overall-label">Active Incidents</div>
+        </div>
+        <div class="overall-stat">
+          <div class="overall-value" id="overall-orders">—</div>
+          <div class="overall-label">Orders Processed</div>
+        </div>
+        <div class="overall-stat">
+          <div class="overall-value" id="overall-response">—</div>
+          <div class="overall-label">Avg Response</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="services-section">
+      <h2 class="section-title">// SERVICES</h2>
+      <div class="services-grid">
+
+        <div class="service-card scanline-frame" id="service-storefront">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="service-header">
+            <div class="service-icon">🛍</div>
+            <div class="service-info">
+              <h3>Storefront</h3>
+              <p>Public website & product catalog</p>
+            </div>
+            <div class="service-status operational"><span class="dot"></span>Operational</div>
+          </div>
+          <div class="service-uptime">
+            <div class="uptime-bar"><span style="width: 100%"></span></div>
+            <div class="uptime-label">Uptime: 100%</div>
+          </div>
+        </div>
+
+        <div class="service-card scanline-frame" id="service-database">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="service-header">
+            <div class="service-icon">💾</div>
+            <div class="service-info">
+              <h3>Database</h3>
+              <p>Firestore — real-time data layer</p>
+            </div>
+            <div class="service-status" id="db-status"><span class="dot"></span>Checking</div>
+          </div>
+          <div class="service-uptime">
+            <div class="uptime-bar"><span id="db-latency-bar" style="width: 0%"></span></div>
+            <div class="uptime-label">Latency: <span id="db-latency">— ms</span></div>
+          </div>
+        </div>
+
+        <div class="service-card scanline-frame" id="service-auth">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="service-header">
+            <div class="service-icon">🔐</div>
+            <div class="service-info">
+              <h3>Authentication</h3>
+              <p>Firebase Auth — login & signup</p>
+            </div>
+            <div class="service-status" id="auth-status"><span class="dot"></span>Checking</div>
+          </div>
+          <div class="service-uptime">
+            <div class="uptime-bar"><span style="width: 100%"></span></div>
+            <div class="uptime-label">Status: <span id="auth-info">—</span></div>
+          </div>
+        </div>
+
+        <div class="service-card scanline-frame" id="service-telegram">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="service-header">
+            <div class="service-icon">✈</div>
+            <div class="service-info">
+              <h3>Telegram Bot</h3>
+              <p>Order notification pipeline</p>
+            </div>
+            <div class="service-status" id="telegram-status"><span class="dot"></span>Checking</div>
+          </div>
+          <div class="service-uptime">
+            <div class="uptime-bar"><span id="tg-bar" style="width: 0%"></span></div>
+            <div class="uptime-label">Status: <span id="tg-info">—</span></div>
+          </div>
+        </div>
+
+        <div class="service-card scanline-frame" id="service-admin">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="service-header">
+            <div class="service-icon">⚡</div>
+            <div class="service-info">
+              <h3>Admin Panel</h3>
+              <p>Control dashboard for operators</p>
+            </div>
+            <div class="service-status operational"><span class="dot"></span>Operational</div>
+          </div>
+          <div class="service-uptime">
+            <div class="uptime-bar"><span style="width: 100%"></span></div>
+            <div class="uptime-label">Uptime: 100%</div>
+          </div>
+        </div>
+
+        <div class="service-card scanline-frame" id="service-security">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="service-header">
+            <div class="service-icon">🛡</div>
+            <div class="service-info">
+              <h3>Security Layer</h3>
+              <p>CSP, rate-limit, ban system</p>
+            </div>
+            <div class="service-status operational"><span class="dot"></span>Operational</div>
+          </div>
+          <div class="service-uptime">
+            <div class="uptime-bar"><span style="width: 100%"></span></div>
+            <div class="uptime-label">Active bans: <span id="ban-count">—</span></div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <section class="metrics-section">
+      <h2 class="section-title">// LIVE METRICS</h2>
+      <div class="metrics-grid">
+        <div class="metric-card scanline-frame">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="metric-label">Products Live</div>
+          <div class="metric-value" id="metric-products">—</div>
+        </div>
+        <div class="metric-card scanline-frame">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="metric-label">Registered Users</div>
+          <div class="metric-value" id="metric-users">—</div>
+        </div>
+        <div class="metric-card scanline-frame">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="metric-label">Total Orders</div>
+          <div class="metric-value" id="metric-orders">—</div>
+        </div>
+        <div class="metric-card scanline-frame">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <div class="metric-label">Online Now</div>
+          <div class="metric-value" id="metric-online">—</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="history-section">
+      <h2 class="section-title">// RECENT ACTIVITY</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Service</th>
+              <th>Event</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="activity-tbody">
+            <tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--text-dim);">Loading recent activity...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="subscribe-section">
+      <div class="subscribe-card scanline-frame">
+        <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+        <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+        <h3>// STAY INFORMED</h3>
+        <p>This page auto-refreshes every 30 seconds. Bookmark it to stay updated on the platform's health.</p>
+        <div class="subscribe-actions">
+          <a href="index.html" class="btn btn-primary">← BACK TO STORE</a>
+          <a href="account.html" class="btn btn-ghost">👤 MY ACCOUNT</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer>
+    <div class="container">
+      <div class="glitch-text" style="margin-bottom: 12px;">SYNAXMATRIX // EST. 2026</div>
+      <p>Powered by Firebase · Built for the future</p>
+    </div>
+  </footer>
+
+  <button id="back-to-top" aria-label="Back to top" title="Back to top">↑</button>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="status.js"></script>
+</body>
+</html>

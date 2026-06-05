@@ -10,6 +10,9 @@
   var heartbeatInterval = null;
   var adminEmailsCache = [];
   var currentFingerprint = null;
+  var VISIT_LOGGED_KEY = "cy_visit_logged_";
+  var MAINTENANCE_CACHE_KEY = "cy_maint";
+  var MAINTENANCE_CACHE_TTL = 30000;
 
   function isAdminEmail(email) {
     if (!email) return false;
@@ -84,6 +87,7 @@
             '<a href="account.html" role="menuitem">👤 My Account</a>' +
             (isAdmin ? '<a href="admin.html" id="dd-admin" role="menuitem">⚡ Admin Panel</a>' : '') +
             '<a href="index.html" role="menuitem">🏠 Store</a>' +
+            '<a href="status.html" role="menuitem">📊 System Status</a>' +
             '<div class="divider"></div>' +
             '<a href="#" id="dd-logout" role="menuitem">⎋ Logout</a>' +
           '</div>' +
@@ -101,7 +105,9 @@
       document.addEventListener("click", function () { dd.classList.remove("open"); pill.setAttribute("aria-expanded", "false"); });
     } else {
       if (adminLink) adminLink.style.display = "none";
-      navUser.innerHTML = '<a href="index.html" class="btn btn-primary btn-sm">SIGN IN</a>';
+      navUser.innerHTML =
+        '<a href="status.html" class="btn btn-ghost btn-sm" title="System Status" style="padding:8px 10px;">📊</a>' +
+        '<a href="index.html" class="btn btn-primary btn-sm">SIGN IN</a>';
     }
   }
 
@@ -131,6 +137,54 @@
       sessionStorage.setItem("cy_fp_ts", String(Date.now()));
     } catch (e) {}
     return currentFingerprint;
+  }
+
+  async function logVisit() {
+    if (typeof db === "undefined") return;
+    try {
+      var page = window.location.pathname.split("/").pop() || "account.html";
+      var flagKey = VISIT_LOGGED_KEY + page;
+      var last = parseInt(sessionStorage.getItem(flagKey) || "0", 10);
+      if (last && Date.now() - last < 10000) return;
+      sessionStorage.setItem(flagKey, String(Date.now()));
+      var fp = await getFingerprint();
+      await db.collection(COLLECTIONS.VISITORS).add({
+        page: page,
+        fingerprint: fp,
+        userId: currentUser ? currentUser.uid : null,
+        email: currentUser ? currentUser.email : null,
+        isAdmin: isAdminEmail(currentUser && currentUser.email),
+        isLoggedIn: !!currentUser,
+        userAgent: navigator.userAgent.slice(0, 200),
+        referrer: (document.referrer || "").slice(0, 200) || null,
+        screen: (screen.width || 0) + "x" + (screen.height || 0),
+        lang: (navigator.language || "").slice(0, 10),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) { /* silent fail */ }
+  }
+
+  async function checkMaintenance() {
+    if (typeof db === "undefined") return false;
+    var path = window.location.pathname;
+    if (path.indexOf("maintenance.html") !== -1 || path.indexOf("admin.html") !== -1) return false;
+    try {
+      var cached = sessionStorage.getItem(MAINTENANCE_CACHE_KEY);
+      if (cached) {
+        try {
+          var parsed = JSON.parse(cached);
+          if (parsed && Date.now() - parsed.ts < MAINTENANCE_CACHE_TTL) {
+            if (parsed.enabled) { window.location.replace("maintenance.html"); return true; }
+            return false;
+          }
+        } catch (e) { /* */ }
+      }
+      var doc = await db.collection(COLLECTIONS.CONFIG).doc("maintenance").get();
+      var enabled = doc.exists && doc.data().enabled === true;
+      try { sessionStorage.setItem(MAINTENANCE_CACHE_KEY, JSON.stringify({ enabled: enabled, ts: Date.now() })); } catch (e) {}
+      if (enabled) { window.location.replace("maintenance.html"); return true; }
+    } catch (e) { /* fail open */ }
+    return false;
   }
 
   async function saveFingerprintForUser(user) {
@@ -359,26 +413,31 @@
     attachNavToggle();
     attachBackToTop();
 
-    auth.onAuthStateChanged(async function (user) {
-      currentUser = user;
-      if (user) {
-        $("#auth-required").style.display = "none";
-        $("#account-content").style.display = "block";
-        updateNavUser(user);
-        renderProfile({});
-        loadUserData(user);
-        startOrdersListener(user);
-        startPresence(user);
-        saveFingerprintForUser(user);
-        var fp = await getFingerprint();
-        var fpEl = $("#device-fp");
-        if (fpEl) fpEl.textContent = fp;
-      } else {
-        $("#auth-required").style.display = "block";
-        $("#account-content").style.display = "none";
-        updateNavUser(null);
-        stopPresence();
-      }
+    checkMaintenance().then(function (blocked) {
+      if (blocked) return;
+      logVisit();
+
+      auth.onAuthStateChanged(async function (user) {
+        currentUser = user;
+        if (user) {
+          $("#auth-required").style.display = "none";
+          $("#account-content").style.display = "block";
+          updateNavUser(user);
+          renderProfile({});
+          loadUserData(user);
+          startOrdersListener(user);
+          startPresence(user);
+          saveFingerprintForUser(user);
+          var fp = await getFingerprint();
+          var fpEl = $("#device-fp");
+          if (fpEl) fpEl.textContent = fp;
+        } else {
+          $("#auth-required").style.display = "block";
+          $("#account-content").style.display = "none";
+          updateNavUser(null);
+          stopPresence();
+        }
+      });
     });
 
     startAdminListListener();

@@ -37,7 +37,8 @@
     BLOCKED: "blockedDevices",
     USERS: "users",
     ORDERS: "orders",
-    CONFIG: "config"
+    CONFIG: "config",
+    VISITORS: "visitors"
   };
 
   window.OWNER_EMAIL = "ya2190069@gmail.com";
@@ -54,8 +55,18 @@
   };
 
   window.SECURITY = {
-    ORDER_COOLDOWN_MS: 30000,
+    ORDER_COOLDOWN_MS: 60000,
     MAX_LOGIN_ATTEMPTS: 5,
-    LOGIN_LOCKOUT_MS: 60000
+    LOGIN_LOCKOUT_MS: 60000,
+    VISITOR_LOG_THROTTLE_MS: 10000
+  };
+
+  window.MAINTENANCE_DEFAULT = {
+    enabled: false,
+    message: "We're performing scheduled maintenance to improve your experience. We'll be back shortly. Thank you for your patience.",
+    eta: null,
+    etaText: "Soon",
+    updatedAt: null,
+    updatedBy: null
   };
 })();

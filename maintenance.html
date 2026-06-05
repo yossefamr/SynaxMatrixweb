@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#03030a" />
+  <meta name="robots" content="noindex, nofollow" />
+
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="Referrer-Policy" content="no-referrer" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://firestore.googleapis.com https://identitytoolkit.googleapis.com https://*.googleapis.com; frame-ancestors 'none';" />
+
+  <title>MAINTENANCE // SynaxMatrix</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%9A%99%3C/text%3E%3C/svg%3E" />
+</head>
+<body class="maintenance-page">
+  <div class="maintenance-wrap">
+    <div class="maintenance-card scanline-frame">
+      <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+      <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+
+      <div class="maintenance-icon">
+        <div class="gear gear-1">⚙</div>
+        <div class="gear gear-2">⚙</div>
+        <div class="gear gear-3">⚙</div>
+      </div>
+
+      <h1 class="glitch-text">UNDER MAINTENANCE</h1>
+      <p class="maintenance-subtitle">// System Offline</p>
+
+      <div class="maintenance-message" id="maintenance-message">
+        We're performing scheduled maintenance to improve your experience.
+        We'll be back shortly. Thank you for your patience.
+      </div>
+
+      <div class="maintenance-progress">
+        <div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-label"><span id="progress-text">Analyzing systems...</span></div>
+      </div>
+
+      <div class="maintenance-stats">
+        <div class="m-stat">
+          <div class="m-stat-value" id="m-stat-uptime">—</div>
+          <div class="m-stat-label">ETA</div>
+        </div>
+        <div class="m-stat">
+          <div class="m-stat-value" id="m-stat-status">●</div>
+          <div class="m-stat-label">Status</div>
+        </div>
+        <div class="m-stat">
+          <div class="m-stat-value" id="m-stat-poll">30s</div>
+          <div class="m-stat-label">Auto-Refresh</div>
+        </div>
+      </div>
+
+      <div class="maintenance-actions">
+        <a href="status.html" class="btn btn-ghost">📊 SYSTEM STATUS</a>
+        <a href="admin.html" class="btn btn-primary" id="admin-link">⚡ ADMIN LOGIN</a>
+      </div>
+
+      <p class="maintenance-footer">This page auto-checks every 30 seconds. If you're an admin, you can disable maintenance from the dashboard.</p>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+  <script src="firebase-config.js"></script>
+  <script src="maintenance.js"></script>
+</body>
+</html>

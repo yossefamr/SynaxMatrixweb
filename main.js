@@ -5,6 +5,9 @@
   var FINGERPRINT_CACHE_KEY = "cy_fp";
   var FINGERPRINT_CACHE_TS = "cy_fp_ts";
   var FINGERPRINT_CACHE_TTL = 3600000;
+  var VISIT_LOGGED_KEY = "cy_visit_logged_";
+  var MAINTENANCE_CACHE_KEY = "cy_maint";
+  var MAINTENANCE_CACHE_TTL = 30000;
 
   var blockedCache = { ids: new Set(), ts: 0 };
   var currentUser = null;
@@ -117,6 +120,67 @@
       }
       await userRef.set(update, { merge: true });
     } catch (e) { console.warn("saveFingerprintForUser failed:", e); }
+  }
+
+  async function logVisit() {
+    if (typeof db === "undefined") return;
+    try {
+      var page = window.location.pathname.split("/").pop() || "index.html";
+      var flagKey = VISIT_LOGGED_KEY + page;
+      var last = parseInt(sessionStorage.getItem(flagKey) || "0", 10);
+      if (last && Date.now() - last < (SECURITY.VISITOR_LOG_THROTTLE_MS || 10000)) return;
+      sessionStorage.setItem(flagKey, String(Date.now()));
+
+      var fp = await getFingerprint();
+      await db.collection(COLLECTIONS.VISITORS).add({
+        page: page,
+        fingerprint: fp,
+        userId: currentUser ? currentUser.uid : null,
+        email: currentUser ? currentUser.email : null,
+        isAdmin: isAdminEmail(currentUser && currentUser.email),
+        isLoggedIn: !!currentUser,
+        userAgent: navigator.userAgent.slice(0, 200),
+        referrer: (document.referrer || "").slice(0, 200) || null,
+        screen: (screen.width || 0) + "x" + (screen.height || 0),
+        lang: (navigator.language || "").slice(0, 10),
+        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) { /* silent fail */ }
+  }
+
+  async function checkMaintenance() {
+    if (typeof db === "undefined") return false;
+    var path = window.location.pathname;
+    if (path.indexOf("maintenance.html") !== -1 ||
+        path.indexOf("admin.html") !== -1 ||
+        path.indexOf("404.html") !== -1 ||
+        path.indexOf("status.html") !== -1) {
+      return false;
+    }
+    try {
+      var cached = sessionStorage.getItem(MAINTENANCE_CACHE_KEY);
+      if (cached) {
+        try {
+          var parsed = JSON.parse(cached);
+          if (parsed && Date.now() - parsed.ts < MAINTENANCE_CACHE_TTL) {
+            if (parsed.enabled) {
+              window.location.replace("maintenance.html");
+              return true;
+            }
+            return false;
+          }
+        } catch (e) { /* */ }
+      }
+
+      var doc = await db.collection(COLLECTIONS.CONFIG).doc("maintenance").get();
+      var enabled = doc.exists && doc.data().enabled === true;
+      try { sessionStorage.setItem(MAINTENANCE_CACHE_KEY, JSON.stringify({ enabled: enabled, ts: Date.now() })); } catch (e) {}
+      if (enabled) {
+        window.location.replace("maintenance.html");
+        return true;
+      }
+    } catch (e) { /* fail open */ }
+    return false;
   }
 
   function startPresence(user) {
@@ -343,6 +407,7 @@
     } else {
       document.getElementById("order-form").reset();
     }
+    updateCooldownUI();
     openModal("order-modal");
   }
 
@@ -410,6 +475,7 @@
             '<div class="divider"></div>' +
             '<a href="account.html" role="menuitem">👤 My Account</a>' +
             (admin ? '<a href="admin.html" id="dd-admin" role="menuitem">⚡ Open Admin Panel</a>' : '') +
+            '<a href="status.html" role="menuitem">📊 System Status</a>' +
             '<div class="divider"></div>' +
             '<a href="#" id="dd-logout" role="menuitem">⎋ Logout</a>' +
           '</div>' +
@@ -429,6 +495,7 @@
     } else {
       if (adminLink) adminLink.style.display = "none";
       navUser.innerHTML =
+        '<a href="status.html" class="btn btn-ghost btn-sm" title="System Status" style="padding:8px 10px;">📊</a>' +
         '<button class="btn btn-ghost btn-sm" id="open-login-btn">LOGIN</button>' +
         '<button class="btn btn-primary btn-sm" id="open-signup-btn">SIGN UP</button>';
       var loginBtn = document.getElementById("open-login-btn");
@@ -509,15 +576,59 @@
     return map[code] || "Authentication failed. Please try again.";
   }
 
-  function checkOrderCooldown() {
+  function getCooldownRemaining() {
     try {
-      var last = parseInt(localStorage.getItem("cy_last_order") || "0", 10);
-      if (last && Date.now() - last < (SECURITY.ORDER_COOLDOWN_MS || 30000)) {
-        var secs = Math.ceil((SECURITY.ORDER_COOLDOWN_MS - (Date.now() - last)) / 1000);
-        return "Please wait " + secs + "s before placing another order";
-      }
-    } catch (e) {}
+      var fp = currentFingerprint || "anon";
+      var key = "cy_last_order_" + fp;
+      var last = parseInt(localStorage.getItem(key) || "0", 10);
+      if (!last) return 0;
+      var remaining = (SECURITY.ORDER_COOLDOWN_MS || 60000) - (Date.now() - last);
+      return remaining > 0 ? remaining : 0;
+    } catch (e) { return 0; }
+  }
+
+  function setCooldown() {
+    try {
+      var fp = currentFingerprint || "anon";
+      var key = "cy_last_order_" + fp;
+      localStorage.setItem(key, String(Date.now()));
+    } catch (e) { /* */ }
+  }
+
+  function checkOrderCooldown() {
+    var remaining = getCooldownRemaining();
+    if (remaining > 0) {
+      var secs = Math.ceil(remaining / 1000);
+      return "Please wait " + secs + "s before placing another order";
+    }
     return null;
+  }
+
+  function updateCooldownUI() {
+    var submitBtn = document.getElementById("order-submit-btn");
+    if (!submitBtn) return;
+    var remaining = getCooldownRemaining();
+    if (remaining > 0) {
+      submitBtn.disabled = true;
+      var secs = Math.ceil(remaining / 1000);
+      submitBtn.textContent = "WAIT " + secs + "s";
+      if (!window._cooldownTimer) {
+        window._cooldownTimer = setInterval(function () {
+          var r = getCooldownRemaining();
+          if (r > 0) {
+            submitBtn.textContent = "WAIT " + Math.ceil(r / 1000) + "s";
+          } else {
+            submitBtn.disabled = false;
+            submitBtn.textContent = "SUBMIT ORDER";
+            clearInterval(window._cooldownTimer);
+            window._cooldownTimer = null;
+          }
+        }, 1000);
+      }
+    } else {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "SUBMIT ORDER";
+    }
   }
 
   async function submitOrder(e) {
@@ -531,7 +642,7 @@
     }
 
     var cd = checkOrderCooldown();
-    if (cd) { showToast(cd, "error"); return; }
+    if (cd) { showToast(cd, "error"); updateCooldownUI(); return; }
 
     var submitBtn = document.getElementById("order-submit-btn");
     var errBox = document.getElementById("order-error");
@@ -593,15 +704,14 @@
 
     try {
       var ref = await db.collection(COLLECTIONS.ORDERS).add(data);
-      try { localStorage.setItem("cy_last_order", String(Date.now())); } catch (e2) {}
-      showToast("Order placed successfully", "success", "ORDER #" + ref.id.slice(0, 8).toUpperCase());
+      setCooldown();
+      showToast("Order placed — wait 60s before next", "success", "ORDER #" + ref.id.slice(0, 8).toUpperCase());
       sendTelegramNotification({ id: ref.id, ...data }).catch(function (e) { console.warn("Telegram failed:", e); });
       document.getElementById("order-form").reset();
       closeModals();
     } catch (err) {
       errBox.textContent = "Failed to submit: " + (err.message || "Unknown error");
       errBox.style.display = "block";
-    } finally {
       submitBtn.disabled = false;
       submitBtn.textContent = "SUBMIT ORDER";
     }
@@ -693,6 +803,9 @@
     var allowed = await enforceBan();
     if (!allowed) return;
 
+    var inMaintenance = await checkMaintenance();
+    if (inMaintenance) return;
+
     auth.onAuthStateChanged(function (user) {
       currentUser = user;
       updateNavUser(user);
@@ -706,6 +819,7 @@
 
     loadTelegramConfig();
     startAdminListListener();
+    logVisit();
 
     try {
       db.collection(COLLECTIONS.PRODUCTS)
