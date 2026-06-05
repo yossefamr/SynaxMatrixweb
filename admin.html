@@ -100,6 +100,9 @@
       <div class="nav-item" data-tab="system">
         <span class="icon">&#9881;</span> System
       </div>
+      <div class="nav-item" data-tab="payments">
+        <span class="icon">&#128179;</span> Payments
+      </div>
       <div class="sidebar-footer">
         <div class="user-badge">
           <div class="avatar" id="user-avatar">A</div>
@@ -389,8 +392,7 @@
             </div>
           </form>
         </div>
-      </section>
-    </main>
+      <section id="tab-system" class="tab-content" style="display:none">
   </div>
 
   <div id="product-form-modal" class="modal-overlay" role="dialog" aria-modal="true">
@@ -455,6 +457,69 @@
         <div class="form-actions">
           <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
           <button type="submit" class="btn btn-danger">BLOCK DEVICE</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="payment-form-modal" class="modal-overlay" role="dialog" aria-modal="true">
+    <div class="modal">
+      <button class="modal-close" data-close aria-label="Close">&times;</button>
+      <h2 id="payment-form-title">// New Payment Method</h2>
+      <form id="payment-form" novalidate>
+        <input type="hidden" id="payment-id" />
+        <div class="form-row">
+          <div class="form-group">
+            <label for="payment-name">Display Name *</label>
+            <input type="text" id="payment-name" required maxlength="50" placeholder="Vodafone Cash" />
+          </div>
+          <div class="form-group">
+            <label for="payment-type">Type</label>
+            <select id="payment-type">
+              <option value="mobile_wallet">Mobile Wallet</option>
+              <option value="bank">Bank Transfer</option>
+              <option value="gateway">Payment Gateway</option>
+              <option value="crypto">Crypto</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="payment-icon">Icon (emoji)</label>
+            <input type="text" id="payment-icon" maxlength="4" placeholder="📱" />
+          </div>
+          <div class="form-group">
+            <label for="payment-color">Accent Color</label>
+            <input type="text" id="payment-color" maxlength="9" placeholder="#e60000" />
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="payment-account">Account Number / Code *</label>
+            <input type="text" id="payment-account" required maxlength="50" placeholder="01012345678" />
+          </div>
+          <div class="form-group">
+            <label for="payment-account-name">Account Name</label>
+            <input type="text" id="payment-account-name" maxlength="100" placeholder="Mohamed Ahmed" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="payment-instructions">Instructions for Customer</label>
+          <textarea id="payment-instructions" maxlength="500" placeholder="Transfer the total amount to this number, then enter the transaction ID below."></textarea>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label for="payment-sort">Sort Order</label>
+            <input type="number" id="payment-sort" min="0" max="999" value="99" />
+          </div>
+          <div class="form-group" style="display: flex; align-items: center; gap: 10px; padding-top: 28px;">
+            <input type="checkbox" id="payment-enabled" checked style="width: auto; margin: 0;" />
+            <label for="payment-enabled" style="margin: 0;">Enabled (visible to customers)</label>
+          </div>
+        </div>
+        <div class="form-actions">
+          <button type="button" class="btn btn-ghost" data-close>CANCEL</button>
+          <button type="submit" class="btn btn-primary" id="payment-save-btn">SAVE</button>
         </div>
       </form>
     </div>

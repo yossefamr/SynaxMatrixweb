@@ -61,6 +61,7 @@
     var MUTED = [120, 130, 150];
     var LINE = [220, 225, 235];
     var BG = [248, 250, 252];
+    var WARN = [200, 130, 0];
 
     doc.setFillColor.apply(doc, DARK);
     doc.rect(0, 0, 210, 38, "F");
@@ -210,7 +211,65 @@
     doc.setTextColor.apply(doc, CYAN);
     doc.text(priceStr, 192, totalY + 19, { align: "right" });
 
-    var thanksY = totalY + 38;
+    var payY = totalY + 36;
+    if (order.paymentMethod) {
+      doc.setFillColor.apply(doc, BG);
+      doc.roundedRect(15, payY, 180, 30, 2, 2, "F");
+      doc.setDrawColor.apply(doc, WARN);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(15, payY, 180, 30, 2, 2, "S");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(10);
+      doc.setTextColor.apply(doc, DARK);
+      doc.text("PAYMENT INFORMATION", 18, payY + 6);
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor.apply(doc, MUTED);
+      doc.text("Method:", 18, payY + 12);
+      doc.setTextColor.apply(doc, TEXT);
+      doc.setFont("helvetica", "bold");
+      doc.text(sanitizeText(order.paymentMethod.name, 30), 42, payY + 12);
+
+      if (order.paymentMethod.accountNumber) {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor.apply(doc, MUTED);
+        doc.text("Account:", 18, payY + 17);
+        doc.setFont("courier", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor.apply(doc, TEXT);
+        doc.text(sanitizeText(order.paymentMethod.accountNumber, 30), 42, payY + 17);
+      }
+
+      if (order.paymentMethod.accountName) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor.apply(doc, MUTED);
+        doc.text("Name:", 18, payY + 22);
+        doc.setTextColor.apply(doc, TEXT);
+        doc.text(sanitizeText(order.paymentMethod.accountName, 30), 42, payY + 22);
+      }
+
+      if (order.paymentRef) {
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor.apply(doc, MUTED);
+        doc.text("Ref:", 110, payY + 17);
+        doc.setFont("courier", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor.apply(doc, CYAN);
+        doc.text(sanitizeText(order.paymentRef, 30), 122, payY + 17);
+
+        doc.setFont("helvetica", "italic");
+        doc.setFontSize(7.5);
+        doc.setTextColor.apply(doc, MUTED);
+        doc.text("Verify this transaction reference before fulfillment.", 110, payY + 22);
+      }
+
+      payY += 38;
+    }
+
+    var thanksY = payY;
     doc.setFillColor.apply(doc, BG);
     doc.roundedRect(15, thanksY, 180, 22, 2, 2, "F");
     doc.setDrawColor.apply(doc, CYAN);
@@ -258,7 +317,9 @@
         product: title,
         price: priceStr,
         date: fmtDate(date),
-        orderId: order.id
+        orderId: order.id,
+        paymentMethod: order.paymentMethod ? order.paymentMethod.name : null,
+        paymentRef: order.paymentRef || null
       }
     };
   }

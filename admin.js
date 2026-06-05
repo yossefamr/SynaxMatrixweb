@@ -12,6 +12,7 @@
   var usersListener = null;
   var adminListListener = null;
   var visitorsListener = null;
+  var paymentsListener = null;
   var currentOrderFilter = "all";
   var currentOrders = [];
   var adminEmailsCache = [];
@@ -217,6 +218,20 @@
         snap.forEach(function (d) { visitors.push({ id: d.id, ...d.data() }); });
         renderVisitors(visitors);
       }, function (err) { console.warn("Visitors listener error:", err); });
+
+    if (paymentsListener) paymentsListener();
+    paymentsListener = db.collection(COLLECTIONS.PAYMENT_METHODS)
+      .onSnapshot(function (snap) {
+        var list = [];
+        snap.forEach(function (d) { list.push({ id: d.id, ...d.data() }); });
+        list.sort(function (a, b) {
+          var ao = a.sortOrder || 999;
+          var bo = b.sortOrder || 999;
+          if (ao !== bo) return ao - bo;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        renderPayments(list);
+      }, function (err) { console.warn("Payments listener error:", err); });
   }
 
   function stopListeners() {
@@ -225,6 +240,7 @@
     if (ordersListener) { ordersListener(); ordersListener = null; }
     if (usersListener) { usersListener(); usersListener = null; }
     if (visitorsListener) { visitorsListener(); visitorsListener = null; }
+    if (paymentsListener) { paymentsListener(); paymentsListener = null; }
   }
 
   function updateUserStats(users) {
@@ -483,6 +499,182 @@
         if (val) { try { navigator.clipboard.writeText(val).then(function () { showToast("Copied", "success"); }); } catch (e) {} }
       });
     });
+  }
+
+  function renderPayments(methods) {
+    var tbody = $("#payments-tbody");
+    if (!tbody) return;
+    if (!methods.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--text-dim);">No payment methods yet. Click <strong>🌱 SEED DEFAULTS</strong> to add the 4 standard methods (Vodafone Cash, Etisalat Cash, WE Cash, Fawry), or <strong>+ ADD METHOD</strong> to create your own.</td></tr>';
+      return;
+    }
+    tbody.innerHTML = "";
+    methods.forEach(function (m) {
+      var tr = document.createElement("tr");
+      var enabled = m.enabled === true;
+      var statusBadge = enabled
+        ? '<span class="badge-soft success">● ENABLED</span>'
+        : '<span class="badge-soft danger">● DISABLED</span>';
+      var colorDot = m.color ? '<span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:' + escapeHtml(m.color) + '; box-shadow: 0 0 6px ' + escapeHtml(m.color) + '; margin-right: 6px; vertical-align: middle;"></span>' : '';
+      tr.innerHTML =
+        '<td style="color: var(--text-dim); font-family: var(--font-mono); font-size: 0.85rem;">' + escapeHtml(String(m.sortOrder || "—")) + '</td>' +
+        '<td style="font-weight: 600;">' + colorDot + escapeHtml(m.icon || "💰") + ' ' + escapeHtml(m.name) + '<div style="color:var(--text-muted); font-size:0.7rem; text-transform:uppercase; letter-spacing:1px; margin-top:2px;">' + escapeHtml((m.type || "").replace(/_/g, " ")) + '</div></td>' +
+        '<td style="font-family: var(--font-mono); font-size: 0.85rem; color: var(--primary);">' + escapeHtml(m.accountNumber || "—") + '</td>' +
+        '<td style="color: var(--text-dim);">' + escapeHtml(m.accountName || "—") + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td style="text-align:right; white-space:nowrap;">' +
+          '<button class="btn btn-ghost btn-sm" data-toggle-payment="' + escapeHtml(m.id) + '" data-enabled="' + (enabled ? "1" : "0") + '" style="margin-right:4px;">' + (enabled ? "DISABLE" : "ENABLE") + '</button>' +
+          '<button class="btn btn-ghost btn-sm" data-edit-payment="' + escapeHtml(m.id) + '" style="margin-right:4px;">EDIT</button>' +
+          '<button class="btn btn-danger btn-sm" data-delete-payment="' + escapeHtml(m.id) + '" data-name="' + escapeHtml(m.name) + '">DEL</button>' +
+        '</td>';
+      tbody.appendChild(tr);
+    });
+    tbody.querySelectorAll("[data-edit-payment]").forEach(function (btn) {
+      btn.addEventListener("click", function () { editPaymentMethod(btn.dataset.editPayment, methods); });
+    });
+    tbody.querySelectorAll("[data-toggle-payment]").forEach(function (btn) {
+      btn.addEventListener("click", function () { togglePaymentMethod(btn.dataset.togglePayment, btn.dataset.enabled !== "1"); });
+    });
+    tbody.querySelectorAll("[data-delete-payment]").forEach(function (btn) {
+      btn.addEventListener("click", function () { deletePaymentMethod(btn.dataset.deletePayment, btn.dataset.name); });
+    });
+  }
+
+  function openPaymentFormModal(method) {
+    var idEl = $("#payment-id");
+    var nameEl = $("#payment-name");
+    var typeEl = $("#payment-type");
+    var iconEl = $("#payment-icon");
+    var colorEl = $("#payment-color");
+    var accEl = $("#payment-account");
+    var accNameEl = $("#payment-account-name");
+    var instrEl = $("#payment-instructions");
+    var sortEl = $("#payment-sort");
+    var enabledEl = $("#payment-enabled");
+    var titleEl = $("#payment-form-title");
+    if (method) {
+      if (idEl) idEl.value = method.id;
+      if (nameEl) nameEl.value = method.name || "";
+      if (typeEl) typeEl.value = method.type || "mobile_wallet";
+      if (iconEl) iconEl.value = method.icon || "";
+      if (colorEl) colorEl.value = method.color || "";
+      if (accEl) accEl.value = method.accountNumber || "";
+      if (accNameEl) accNameEl.value = method.accountName || "";
+      if (instrEl) instrEl.value = method.instructions || "";
+      if (sortEl) sortEl.value = method.sortOrder || 99;
+      if (enabledEl) enabledEl.checked = method.enabled === true;
+      if (titleEl) titleEl.textContent = "// Edit " + method.name;
+    } else {
+      $("#payment-form").reset();
+      if (idEl) idEl.value = "";
+      if (typeEl) typeEl.value = "mobile_wallet";
+      if (sortEl) sortEl.value = 99;
+      if (enabledEl) enabledEl.checked = true;
+      if (titleEl) titleEl.textContent = "// New Payment Method";
+    }
+    openModal("payment-form-modal");
+  }
+
+  function editPaymentMethod(id, methods) {
+    var m = methods.find(function (x) { return x.id === id; });
+    if (m) openPaymentFormModal(m);
+  }
+
+  async function savePaymentMethod(e) {
+    e.preventDefault();
+    var btn = $("#payment-save-btn");
+    var orig = btn ? btn.textContent : "SAVE";
+    if (btn) { btn.disabled = true; btn.textContent = "SAVING..."; }
+    try {
+      var id = $("#payment-id").value.trim();
+      var name = $("#payment-name").value.trim();
+      var type = $("#payment-type").value;
+      var icon = $("#payment-icon").value.trim() || "💰";
+      var color = $("#payment-color").value.trim();
+      var accountNumber = $("#payment-account").value.trim();
+      var accountName = $("#payment-account-name").value.trim();
+      var instructions = $("#payment-instructions").value.trim();
+      var sortOrder = parseInt($("#payment-sort").value, 10) || 99;
+      var enabled = $("#payment-enabled").checked;
+      if (!name || !accountNumber) { showToast("Name and account number are required", "error"); return; }
+      if (color && !/^#[0-9A-Fa-f]{3,8}$/.test(color)) color = "";
+      var payload = {
+        name: name, type: type, icon: icon, color: color || null,
+        accountNumber: accountNumber, accountName: accountName,
+        instructions: instructions || null,
+        sortOrder: sortOrder, enabled: enabled,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser ? currentUser.email : null
+      };
+      if (id) {
+        await db.collection(COLLECTIONS.PAYMENT_METHODS).doc(id).update(payload);
+        logAdminEvent("payment_update", id);
+        showToast("Payment method updated", "success", "UPDATED");
+      } else {
+        payload.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        payload.createdBy = currentUser ? currentUser.email : null;
+        await db.collection(COLLECTIONS.PAYMENT_METHODS).add(payload);
+        logAdminEvent("payment_create", name);
+        showToast("Payment method added", "success", "DEPLOYED");
+      }
+      closeModals();
+    } catch (err) {
+      showToast("Save failed: " + err.message, "error");
+    } finally {
+      if (btn) { btn.disabled = false; btn.textContent = orig; }
+    }
+  }
+
+  async function togglePaymentMethod(id, enable) {
+    try {
+      await db.collection(COLLECTIONS.PAYMENT_METHODS).doc(id).update({
+        enabled: enable,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser ? currentUser.email : null
+      });
+      logAdminEvent(enable ? "payment_enable" : "payment_disable", id);
+      showToast(enable ? "Method enabled — visible to customers" : "Method disabled — hidden from customers", "success");
+    } catch (err) {
+      showToast("Update failed: " + err.message, "error");
+    }
+  }
+
+  async function deletePaymentMethod(id, name) {
+    if (!confirm("Delete payment method \"" + (name || id) + "\"? This cannot be undone.")) return;
+    try {
+      await db.collection(COLLECTIONS.PAYMENT_METHODS).doc(id).delete();
+      logAdminEvent("payment_delete", id);
+      showToast("Payment method deleted", "success", "REMOVED");
+    } catch (err) {
+      showToast("Delete failed: " + err.message, "error");
+    }
+  }
+
+  async function seedPaymentDefaults() {
+    if (!confirm("Add the 4 default Egyptian payment methods (Vodafone Cash, Etisalat Cash, WE Cash, Fawry)?")) return;
+    if (!window.PAYMENT_DEFAULTS) { showToast("Defaults not loaded", "error"); return; }
+    try {
+      var batch = db.batch();
+      var ts = firebase.firestore.FieldValue.serverTimestamp();
+      var added = 0;
+      window.PAYMENT_DEFAULTS.forEach(function (p) {
+        var ref = db.collection(COLLECTIONS.PAYMENT_METHODS).doc();
+        var payload = {
+          name: p.name, type: p.type, icon: p.icon, color: p.color,
+          accountNumber: p.accountNumber, accountName: p.accountName,
+          instructions: p.instructions, sortOrder: p.sortOrder,
+          enabled: p.enabled, createdAt: ts, updatedAt: ts,
+          createdBy: currentUser ? currentUser.email : null
+        };
+        batch.set(ref, payload);
+        added++;
+      });
+      await batch.commit();
+      logAdminEvent("payment_seed", added + " methods");
+      showToast(added + " default methods added (edit & enable them to go live)", "success", "SEEDED");
+    } catch (err) {
+      showToast("Seed failed: " + err.message, "error");
+    }
   }
 
   function renderAuditLog() {
@@ -986,13 +1178,14 @@
         $$(".nav-item").forEach(function (n) { n.classList.remove("active"); });
         item.classList.add("active");
         var tab = item.dataset.tab;
-        ["products", "orders", "users", "admins", "blocks", "telegram", "activity", "system"].forEach(function (t) {
+        ["products", "orders", "users", "admins", "blocks", "telegram", "activity", "system", "payments"].forEach(function (t) {
           var sec = $("#tab-" + t);
           if (sec) sec.style.display = t === tab ? "block" : "none";
         });
         if (tab === "admins") renderAdminsList();
         if (tab === "activity") renderAuditLog();
         if (tab === "system") loadMaintenanceConfig();
+        if (tab === "payments") { /* listener is live, no extra load needed */ }
       });
     });
     var filter = $("#order-filter");
@@ -1027,6 +1220,12 @@
 
     $("#add-product-btn").addEventListener("click", function () { resetProductForm(); openModal("product-form-modal"); });
     $("#add-block-btn").addEventListener("click", function () { openModal("block-form-modal"); });
+    var addPayBtn = $("#add-payment-btn");
+    if (addPayBtn) addPayBtn.addEventListener("click", function () { openPaymentFormModal(null); });
+    var seedPayBtn = $("#seed-payment-defaults-btn");
+    if (seedPayBtn) seedPayBtn.addEventListener("click", seedPaymentDefaults);
+    var payForm = $("#payment-form");
+    if (payForm) payForm.addEventListener("submit", savePaymentMethod);
 
     $("#product-form").addEventListener("submit", saveProduct);
     $("#block-form").addEventListener("submit", blockDevice);

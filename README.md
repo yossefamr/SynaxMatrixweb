@@ -16,9 +16,28 @@ A fully dynamic, cyber-themed web application built on Firebase with zero card /
 - Search-engine friendly meta tags + Open Graph ready
 - **🧾 Automated PDF Invoices** generated client-side with jsPDF on order submit
   - Branded header (SynaxMatrix), unique Invoice ID, customer details, itemized table
+  - **Payment Information section** with method, account, name, and transaction ref
   - Auto-downloads to customer's device + toast link to re-download
   - Customers can re-download any past invoice from their Account page
   - Invoice ID stored in the order, summary sent to admin via Telegram
+- **💳 Dynamic Payment Methods** (Vodafone Cash, Etisalat Cash, WE Cash, Fawry)
+  - Customer checkout shows **only enabled** methods in real-time (Firestore `onSnapshot`)
+  - Selecting a method reveals the account number, copy button, and instructions
+  - Customer enters a transaction reference that's stored with the order
+  - Admin can add/edit/toggle/delete methods from the Payments tab
+
+### 🛡️ Admin Dashboard
+Hidden from public — only visible when an admin account is signed in.
+- **Products**: Add / Edit / Delete with image upload (auto-compressed to <950KB base64)
+- **Orders**: View, filter, mark contacted / completed / cancelled, delete
+- **Users**: Browse all registered users, see fingerprints, promote / demote / delete
+- **Activity**: Live visitor log (last 10 site visits) + admin audit log
+- **Admins**: Manage admin roster (Owner is permanent)
+- **Block List**: Ban / unban device fingerprints
+- **Telegram**: Configure bot token & chat ID for order notifications
+- **System**: Maintenance mode toggle (Quick Command "Shutdown" + visitor message + ETA) and link to public status page
+- **Payments**: Manage payment methods (Vodafone Cash, Etisalat Cash, WE Cash, Fawry) — edit numbers, toggle Enable/Disable, add/remove
+- **System Diagnostics** (🛠 floating button): Test permissions, verify owner status, check rate-limit config, run permission probes
 
 ### 🔐 Authentication & Accounts
 - Email + password sign-up and login
@@ -100,8 +119,12 @@ Hidden from public — only visible when an admin account is signed in.
 
 ### 🔔 Telegram Integration
 - Per-order Markdown notification with customer details
+- **Invoice summary** sent as **structured HTML + JSON payload** to admin (customer, service, payment method, transaction ref, total)
 - Bot token & chat ID stored in Firestore (not in client code)
 - Test button to verify bot connectivity
+
+### 🔐 Bot Token Security (No Blaze Plan)
+Because the project avoids the Blaze plan (no Cloud Functions), the Telegram bot token lives in Firestore at `config/telegram`. The `firestore.rules` allow **only the two admin emails** to read this doc, so anonymous visitors can never reach it. The client SDK fetches it at runtime and uses it for `sendMessage` calls (fire-and-forget via `mode: "no-cors"`). **The safer upgrade path** is Firebase Cloud Functions (requires Blaze) which would proxy the Telegram API server-side and keep the token completely off the client. See the [Security note](SECURITY.md) for trade-offs.
 
 ### 🚨 Instant Security Alerts (Telegram)
 - **🆕 New product added** by any admin → instant Telegram alert with title, price, category, who added it

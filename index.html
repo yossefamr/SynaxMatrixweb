@@ -172,6 +172,34 @@
           <label for="cust-notes">Notes (optional)</label>
           <textarea id="cust-notes" maxlength="500" placeholder="Any special requirements..." style="min-height: 60px"></textarea>
         </div>
+
+        <div class="form-group" style="margin-top: 24px;">
+          <label>// PAYMENT METHOD *</label>
+          <div id="payment-methods-grid" class="payment-methods-grid">
+            <div class="payment-loading"><div class="loader" style="margin: 0 auto 8px;"></div><span style="font-size:0.85rem; color:var(--text-dim);">Loading payment methods...</span></div>
+          </div>
+        </div>
+
+        <div class="form-group" id="payment-details-section" style="display:none">
+          <div class="payment-detail-card scanline-frame" style="position: relative; padding: 14px;">
+            <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+            <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+            <div style="font-family: var(--font-display); font-size: 0.85rem; letter-spacing: 1.5px; color: var(--primary); margin-bottom: 8px;" id="pd-method-name">—</div>
+            <div style="display:flex; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap;">
+              <code id="pd-account" style="font-size: 1.05rem; color: var(--accent); font-family: var(--font-mono); font-weight: 700;">—</code>
+              <button type="button" class="btn btn-ghost btn-sm" id="pd-copy-btn">📋 COPY</button>
+            </div>
+            <div id="pd-account-name" style="color: var(--text-dim); font-size: 0.8rem; margin-bottom: 8px;">—</div>
+            <div id="pd-instructions" style="color: var(--text-dim); font-size: 0.8rem; line-height: 1.5; padding-top: 8px; border-top: 1px solid var(--border);">—</div>
+          </div>
+        </div>
+
+        <div class="form-group" id="payment-ref-section" style="display:none">
+          <label for="payment-ref">Transaction Reference *</label>
+          <input type="text" id="payment-ref" maxlength="100" placeholder="e.g. TXN-123456 or transaction screenshot ID" autocomplete="off" />
+          <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">After paying, enter the reference number from your receipt.</div>
+        </div>
+
         <div class="honeypot" aria-hidden="true">
           <label for="website">Website (leave blank)</label>
           <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />

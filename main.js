@@ -17,6 +17,9 @@
   var adminEmailsCache = [];
   var presenceInterval = null;
   var currentFingerprint = null;
+  var paymentMethods = [];
+  var paymentMethodsListener = null;
+  var selectedPaymentMethod = null;
 
   function isAdminEmail(email) {
     if (!email) return false;
@@ -213,6 +216,85 @@
     }, function () {});
   }
 
+  function startPaymentMethodsListener() {
+    if (paymentMethodsListener) paymentMethodsListener();
+    paymentMethodsListener = db.collection(COLLECTIONS.PAYMENT_METHODS)
+      .where("enabled", "==", true)
+      .onSnapshot(function (snap) {
+        var list = [];
+        snap.forEach(function (d) { list.push({ id: d.id, ...d.data() }); });
+        list.sort(function (a, b) {
+          var ao = a.sortOrder || 999;
+          var bo = b.sortOrder || 999;
+          if (ao !== bo) return ao - bo;
+          return (a.name || "").localeCompare(b.name || "");
+        });
+        paymentMethods = list;
+        renderPaymentMethods();
+      }, function (err) {
+        console.warn("Payment methods listener error:", err);
+        var grid = document.getElementById("payment-methods-grid");
+        if (grid) grid.innerHTML = '<div style="text-align:center; padding: 14px; color: var(--warn); font-size: 0.85rem;">⚠ Could not load payment methods. Refresh to retry.</div>';
+      });
+  }
+
+  function renderPaymentMethods() {
+    var grid = document.getElementById("payment-methods-grid");
+    if (!grid) return;
+    if (!paymentMethods.length) {
+      grid.innerHTML = '<div style="text-align:center; padding: 20px 14px; color: var(--text-dim); font-size: 0.85rem; border: 1px dashed var(--border); border-radius: 8px;">⚠ No payment methods are currently enabled.<br /><span style="color: var(--text-muted); font-size: 0.75rem;">Contact the admin to enable a payment option.</span></div>';
+      var det = document.getElementById("payment-details-section");
+      var ref = document.getElementById("payment-ref-section");
+      if (det) det.style.display = "none";
+      if (ref) ref.style.display = "none";
+      selectedPaymentMethod = null;
+      return;
+    }
+    grid.innerHTML = "";
+    paymentMethods.forEach(function (m) {
+      var card = document.createElement("div");
+      card.className = "payment-card";
+      card.setAttribute("data-method-id", m.id);
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      var colorStyle = m.color ? "border-left: 3px solid " + escapeHtml(m.color) + ";" : "";
+      card.style.cssText = colorStyle;
+      card.innerHTML =
+        '<div class="payment-icon" style="' + (m.color ? "color:" + escapeHtml(m.color) + ";" : "") + '">' + escapeHtml(m.icon || "💰") + '</div>' +
+        '<div class="payment-info">' +
+          '<div class="payment-name">' + escapeHtml(m.name) + '</div>' +
+          '<div class="payment-type">' + escapeHtml((m.type || "").replace(/_/g, " ")) + '</div>' +
+        '</div>' +
+        '<div class="payment-check">✓</div>';
+      card.addEventListener("click", function () { selectPaymentMethod(m); });
+      card.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectPaymentMethod(m); } });
+      grid.appendChild(card);
+    });
+  }
+
+  function selectPaymentMethod(method) {
+    selectedPaymentMethod = method;
+    var cards = document.querySelectorAll(".payment-card");
+    cards.forEach(function (c) {
+      var isSel = c.getAttribute("data-method-id") === method.id;
+      c.classList.toggle("selected", isSel);
+    });
+    var det = document.getElementById("payment-details-section");
+    var refSec = document.getElementById("payment-ref-section");
+    if (det) {
+      det.style.display = "block";
+      var nameEl = document.getElementById("pd-method-name");
+      var accEl = document.getElementById("pd-account");
+      var accNameEl = document.getElementById("pd-account-name");
+      var instrEl = document.getElementById("pd-instructions");
+      if (nameEl) nameEl.textContent = method.name;
+      if (accEl) accEl.textContent = method.accountNumber || "(not configured)";
+      if (accNameEl) accNameEl.textContent = method.accountName ? "Account name: " + method.accountName : "";
+      if (instrEl) instrEl.textContent = method.instructions || "Pay to the number above, then enter the transaction reference below.";
+    }
+    if (refSec) refSec.style.display = "block";
+  }
+
   async function getFingerprint() {
     if (currentFingerprint) return currentFingerprint;
     try {
@@ -375,6 +457,19 @@
     document.body.style.overflow = "";
   }
 
+  function attachPaymentEvents() {
+    var copyBtn = document.getElementById("pd-copy-btn");
+    if (copyBtn) {
+      copyBtn.addEventListener("click", function () {
+        var acc = document.getElementById("pd-account");
+        if (acc && acc.textContent && acc.textContent !== "(not configured)") {
+          try { navigator.clipboard.writeText(acc.textContent).then(function () { showToast("Account number copied", "success"); }); }
+          catch (e) { showToast("Copy failed", "error"); }
+        }
+      });
+    }
+  }
+
   function renderProducts(products) {
     var grid = document.getElementById("product-grid");
     var counter = document.getElementById("catalog-count");
@@ -405,12 +500,28 @@
     var summary = document.getElementById("order-summary");
     if (summary) {
       summary.innerHTML =
-        '<div class="thumb" ' + (product.imageUrl ? "style=\"background-image:url('" + escapeHtml(product.imageUrl) + "')\"" : "") + '></div>' +
+        '<div class="thumb" ' + (product.imageUrl ? "style=\"background-image:url(\'' + escapeHtml(product.imageUrl) + '\')\"" : "") + '></div>' +
         '<div class="info">' +
           '<h4>' + escapeHtml(product.title || "Product") + '</h4>' +
           '<div class="price">' + formatPrice(product.price) + '</div>' +
         '</div>';
     }
+    if (currentUser) {
+      document.getElementById("cust-name").value = currentUser.displayName || "";
+      document.getElementById("cust-email").value = currentUser.email || "";
+    } else {
+      var formEl = document.getElementById("order-form");
+      if (formEl) formEl.reset();
+    }
+    selectedPaymentMethod = null;
+    var det = document.getElementById("payment-details-section");
+    var refSec = document.getElementById("payment-ref-section");
+    if (det) det.style.display = "none";
+    if (refSec) refSec.style.display = "none";
+    renderPaymentMethods();
+    updateCooldownUI();
+    openModal("order-modal");
+  }
     if (currentUser) {
       document.getElementById("cust-name").value = currentUser.displayName || "";
       document.getElementById("cust-email").value = currentUser.email || "";
@@ -694,6 +805,28 @@
       submitBtn.textContent = "SUBMIT ORDER";
       return;
     }
+    if (!selectedPaymentMethod) {
+      errBox.textContent = "Please select a payment method";
+      errBox.style.display = "block";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "SUBMIT ORDER";
+      return;
+    }
+    var paymentRef = sanitizeText(document.getElementById("payment-ref").value);
+    if (!paymentRef) {
+      errBox.textContent = "Please enter the transaction reference from your payment";
+      errBox.style.display = "block";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "SUBMIT ORDER";
+      return;
+    }
+    if (paymentRef.length < 3) {
+      errBox.textContent = "Transaction reference too short (min 3 chars)";
+      errBox.style.display = "block";
+      submitBtn.disabled = false;
+      submitBtn.textContent = "SUBMIT ORDER";
+      return;
+    }
 
     var invoiceId = (window.SynaxInvoice && window.SynaxInvoice.generateId) ? window.SynaxInvoice.generateId() : ("INV-" + Date.now());
     var productCategory = (currentOrderProduct && currentOrderProduct.category) ? currentOrderProduct.category : null;
@@ -711,6 +844,15 @@
       notes: notes || null,
       status: "pending",
       invoiceId: invoiceId,
+      paymentMethod: {
+        id: selectedPaymentMethod.id,
+        name: selectedPaymentMethod.name,
+        type: selectedPaymentMethod.type || "mobile_wallet",
+        icon: selectedPaymentMethod.icon || "💰",
+        accountNumber: selectedPaymentMethod.accountNumber || "",
+        accountName: selectedPaymentMethod.accountName || ""
+      },
+      paymentRef: paymentRef,
       userId: currentUser ? currentUser.uid : null,
       userFingerprint: currentFingerprint || null,
       userAgent: navigator.userAgent.slice(0, 200),
@@ -791,20 +933,46 @@
     if (telegramConfig.enabled === false) return;
     if (!invoice || !invoice.summary) return;
     var s = invoice.summary;
-    var lines = [
-      "🧾 *INVOICE GENERATED*",
-      "",
-      "• Invoice ID: `" + (s.invoiceId || "—") + "`",
-      "• Order ID: `" + (s.orderId || "—") + "`",
-      "• Customer: " + (s.customer || "—"),
-      "• Product: " + (s.product || "—"),
-      "• Total: *" + (s.price || "—") + "*",
-      "• Date: " + (s.date || "—"),
-      "",
-      "PDF auto-downloaded to the customer. Open `SynaxMatrix-" + s.invoiceId + ".pdf` to view."
-    ];
-    var text = encodeURIComponent(lines.join("\n"));
-    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=Markdown&text=" + text;
+    var jsonPayload = {
+      event: "invoice.generated",
+      timestamp: new Date().toISOString(),
+      invoice_id: s.invoiceId || null,
+      order_id: s.orderId || null,
+      customer: {
+        name: order.customerName || null,
+        email: order.customerEmail || null,
+        phone: order.customerPhone || null
+      },
+      service: {
+        id: order.productId || null,
+        title: s.product || null,
+        category: order.productCategory || null,
+        price_egp: Number(order.productPrice || 0),
+        currency: "EGP"
+      },
+      payment: {
+        method_id: (order.paymentMethod && order.paymentMethod.id) || null,
+        method_name: (order.paymentMethod && order.paymentMethod.name) || null,
+        method_type: (order.paymentMethod && order.paymentMethod.type) || null,
+        account_number: (order.paymentMethod && order.paymentMethod.accountNumber) || null,
+        transaction_ref: order.paymentRef || null
+      },
+      status: order.status || "pending",
+      pdf_filename: invoice.filename
+    };
+    var jsonStr = JSON.stringify(jsonPayload, null, 2);
+    var header = "🧾 <b>NEW INVOICE GENERATED</b>\n";
+    var fields = "<b>Invoice:</b> <code>" + escapeHtml(s.invoiceId || "—") + "</code>\n" +
+                 "<b>Order:</b> <code>" + escapeHtml(s.orderId || "—") + "</code>\n" +
+                 "<b>Customer:</b> " + escapeHtml(order.customerName || "—") + "\n" +
+                 "<b>Service:</b> " + escapeHtml(s.product || "—") + "\n" +
+                 "<b>Total:</b> <b>" + escapeHtml(s.price || "—") + "</b>\n" +
+                 "<b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + " (<code>" + escapeHtml(order.paymentRef || "—") + "</code>)\n" +
+                 "<b>Date:</b> " + escapeHtml(s.date || "—") + "\n\n";
+    var jsonBlock = "<pre>📦 JSON Payload:\n" + escapeHtml(jsonStr) + "</pre>";
+    var footer = "\n📄 PDF auto-downloaded to customer: <code>" + escapeHtml(invoice.filename) + "</code>";
+    var fullText = header + fields + jsonBlock + footer;
+    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendMessage?chat_id=" + telegramConfig.chatId + "&parse_mode=HTML&text=" + encodeURIComponent(fullText);
     try { await fetch(url, { mode: "no-cors" }); } catch (e) { /* */ }
   }
 
@@ -871,6 +1039,8 @@
     if (loginBtn) loginBtn.addEventListener("click", function () { openAuthModal("login"); });
     if (signupBtn) signupBtn.addEventListener("click", function () { openAuthModal("signup"); });
 
+    attachPaymentEvents();
+
     var toggle = document.getElementById("nav-toggle");
     var links = document.getElementById("nav-links");
     if (toggle && links) {
@@ -921,6 +1091,7 @@
 
     loadTelegramConfig();
     startAdminListListener();
+    startPaymentMethodsListener();
     logVisit();
 
     try {

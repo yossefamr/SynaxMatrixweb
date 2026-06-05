@@ -38,8 +38,16 @@
     USERS: "users",
     ORDERS: "orders",
     CONFIG: "config",
-    VISITORS: "visitors"
+    VISITORS: "visitors",
+    PAYMENT_METHODS: "paymentMethods"
   };
+
+  window.PAYMENT_DEFAULTS = [
+    { id: "vodafone-cash", name: "Vodafone Cash", type: "mobile_wallet", icon: "📱", color: "#e60000", accountNumber: "", accountName: "", instructions: "Transfer the total amount to this number, then enter the transaction ID below.", enabled: false, sortOrder: 1 },
+    { id: "etisalat-cash", name: "Etisalat Cash", type: "mobile_wallet", icon: "💸", color: "#76b900", accountNumber: "", accountName: "", instructions: "Transfer the total amount, then enter the transaction reference below.", enabled: false, sortOrder: 2 },
+    { id: "we-cash", name: "WE Cash", type: "mobile_wallet", icon: "💳", color: "#621d6a", accountNumber: "", accountName: "", instructions: "Send the amount via WE Pay, then enter the transaction ID.", enabled: false, sortOrder: 3 },
+    { id: "fawry", name: "Fawry", type: "gateway", icon: "🧾", color: "#f37321", accountNumber: "", accountName: "", instructions: "Pay at any Fawry outlet or use the Fawry app with the reference code provided.", enabled: false, sortOrder: 4 }
+  ];
 
   window.OWNER_EMAIL = "ya2190069@gmail.com";
 
