@@ -248,29 +248,39 @@
       });
 
     if (couponsListener) couponsListener();
-    couponsListener = db.collection(COLLECTIONS.COUPONS)
-      .onSnapshot(function (snap) {
-        var list = [];
-        snap.forEach(function (d) { list.push({ id: d.id, ...d.data() }); });
-        list.sort(function (a, b) {
-          return (a.code || "").localeCompare(b.code || "");
+    try {
+      couponsListener = db.collection(COLLECTIONS.COUPONS)
+        .onSnapshot(function (snap) {
+          var list = [];
+          snap.forEach(function (d) { list.push({ id: d.id, ...d.data() }); });
+          list.sort(function (a, b) {
+            return (a.code || "").localeCompare(b.code || "");
+          });
+          renderCoupons(list);
+          var status = document.getElementById("coupons-status");
+          if (status) {
+            var enabled = list.filter(function (c) { return c.enabled === true; }).length;
+            var totalUses = list.reduce(function (s, c) { return s + (Number(c.usedCount) || 0); }, 0);
+            status.className = "config-status connected";
+            status.innerHTML = '<span class="dot"></span><span><strong>' + list.length + '</strong> total · <strong style="color: var(--accent);">' + enabled + '</strong> active · <strong>' + totalUses + '</strong> redemptions</span>';
+          }
+          console.log("[SynaxMatrix] Coupons listener fired:", list.length, "coupon(s)");
+        }, function (err) {
+          var status = document.getElementById("coupons-status");
+          if (status) {
+            status.className = "config-status error";
+            status.innerHTML = '<span class="dot"></span><span>Error: ' + err.message + '</span>';
+          }
+          console.warn("[SynaxMatrix] Coupons listener error:", err);
         });
-        renderCoupons(list);
-        var status = document.getElementById("coupons-status");
-        if (status) {
-          var enabled = list.filter(function (c) { return c.enabled === true; }).length;
-          var totalUses = list.reduce(function (s, c) { return s + (Number(c.usedCount) || 0); }, 0);
-          status.className = "config-status connected";
-          status.innerHTML = '<span class="dot"></span><span><strong>' + list.length + '</strong> total · <strong style="color: var(--accent);">' + enabled + '</strong> active · <strong>' + totalUses + '</strong> redemptions</span>';
-        }
-      }, function (err) {
-        var status = document.getElementById("coupons-status");
-        if (status) {
-          status.className = "config-status error";
-          status.innerHTML = '<span class="dot"></span><span>Error: ' + err.message + '</span>';
-        }
-        console.warn("Coupons listener error:", err);
-      });
+    } catch (e) {
+      var status = document.getElementById("coupons-status");
+      if (status) {
+        status.className = "config-status error";
+        status.innerHTML = '<span class="dot"></span><span>Listener failed to start: ' + e.message + '</span>';
+      }
+      console.error("[SynaxMatrix] Coupons listener setup failed:", e);
+    }
   }
 
   function stopListeners() {
