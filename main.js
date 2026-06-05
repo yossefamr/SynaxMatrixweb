@@ -973,27 +973,55 @@
   }
 
   async function sendTelegramDocument(chatId, blob, filename, caption) {
-    if (!telegramConfig || !telegramConfig.botToken || !chatId || !blob) return false;
-    if (telegramConfig.enabled === false) return false;
+    if (!telegramConfig || !telegramConfig.botToken || !chatId || !blob) return { ok: false, reason: "missing-config" };
+    if (telegramConfig.enabled === false) return { ok: false, reason: "telegram-disabled" };
     if (typeof chatId === "string") chatId = chatId.replace(/[\s\-]/g, "");
-    if (!/^\d{4,20}$/.test(String(chatId))) return false;
-    try {
-      var formData = new FormData();
-      formData.append("chat_id", String(chatId));
-      formData.append("document", blob, filename || "invoice.pdf");
+    if (!/^\d{4,20}$/.test(String(chatId))) return { ok: false, reason: "bad-chatid" };
+
+    var cleanName = (filename || "invoice.pdf").replace(/[^\w.\-]/g, "_");
+    var url = "https://api.telegram.org/bot" + telegramConfig.botToken + "/sendDocument";
+
+    function buildFormData() {
+      var fd = new FormData();
+      fd.append("chat_id", String(chatId));
+      fd.append("document", blob, cleanName);
       if (caption) {
-        formData.append("caption", caption.slice(0, 1024));
-        formData.append("parse_mode", "HTML");
+        fd.append("caption", String(caption).slice(0, 1024));
+        fd.append("parse_mode", "HTML");
       }
-      var res = await fetch("https://api.telegram.org/bot" + telegramConfig.botToken + "/sendDocument", {
+      return fd;
+    }
+
+    try {
+      var res = await fetch(url, {
         method: "POST",
-        mode: "no-cors",
-        body: formData
+        mode: "cors",
+        body: buildFormData()
       });
-      return true;
-    } catch (e) {
-      console.warn("sendTelegramDocument failed:", e);
-      return false;
+      if (res.ok) {
+        try {
+          var data = await res.json();
+          if (data && data.ok) return { ok: true, method: "cors" };
+          return { ok: false, reason: "api-error", detail: data && data.description };
+        } catch (e) {
+          return { ok: true, method: "cors" };
+        }
+      } else {
+        return { ok: false, reason: "http-" + res.status };
+      }
+    } catch (corsErr) {
+      console.warn("sendTelegramDocument CORS attempt failed, trying no-cors fallback:", corsErr && corsErr.message);
+      try {
+        await fetch(url, {
+          method: "POST",
+          mode: "no-cors",
+          body: buildFormData()
+        });
+        return { ok: true, method: "no-cors" };
+      } catch (fallbackErr) {
+        console.error("sendTelegramDocument fallback also failed:", fallbackErr);
+        return { ok: false, reason: "network" };
+      }
     }
   }
 
@@ -1017,8 +1045,9 @@
         var userData = userDoc.exists ? userDoc.data() : null;
         var userChatId = userData && userData.telegramChatId ? String(userData.telegramChatId) : null;
         if (userChatId) {
-          var ok = await sendTelegramDocument(userChatId, invoice.blob, invoice.filename, caption);
-          if (ok) console.log("Invoice sent to user Telegram:", userChatId);
+          var r = await sendTelegramDocument(userChatId, invoice.blob, invoice.filename, caption);
+          if (r && r.ok) console.log("✓ Invoice PDF sent to user Telegram:", userChatId, "(" + r.method + ")");
+          else console.warn("✗ User PDF delivery failed:", r);
         }
       } catch (e) { console.warn("User chat id lookup failed:", e); }
     }
@@ -1033,7 +1062,9 @@
         "<b>Service:</b> " + escapeHtml(order.productTitle || "—") + "\n" +
         "<b>Total:</b> <b>" + escapeHtml(invoice.summary.price || "—") + "</b>\n" +
         "<b>Payment:</b> " + escapeHtml((order.paymentMethod && order.paymentMethod.name) || "—") + " (<code>" + escapeHtml(order.paymentRef || "—") + "</code>)";
-      await sendTelegramDocument(adminChatId, invoice.blob, invoice.filename, adminCaption);
+      var ar = await sendTelegramDocument(adminChatId, invoice.blob, invoice.filename, adminCaption);
+      if (ar && ar.ok) console.log("✓ Invoice PDF sent to admin Telegram (" + ar.method + ")");
+      else console.warn("✗ Admin PDF delivery failed:", ar);
     }
   }
 
