@@ -12,17 +12,17 @@ This project implements the following security measures:
 
 ### Client-side
 - **Content Security Policy (CSP)** — restricts script/style/connect sources
-- **X-Frame-Options: DENY** — prevents embedding in iframes
 - **X-Content-Type-Options: nosniff** — prevents MIME sniffing
 - **Referrer-Policy** — strict-origin-when-cross-origin
 - **Permissions-Policy** — disables sensitive browser APIs
 - **HTML escaping** on all user-supplied content (XSS protection)
 - **Honeypot field** on order form
-- **Rate limiting** on order submission (30s cooldown)
+- **Rate limiting** on order submission (60s cooldown)
 - **Login throttling** with auto-lockout after 5 failed attempts
 - **Input validation** — email/phone format, max-length, URL filtering
 - **Device fingerprinting** for ban enforcement
 - **noindex, nofollow** on admin and account pages
+- **Clickjacking protection** — set via GitHub Pages' `X-Frame-Options: DENY` HTTP header (not via `<meta>` which is ignored)
 
 ### Server-side (Firestore)
 - Public reads only on non-sensitive collections

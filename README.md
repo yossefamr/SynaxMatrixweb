@@ -99,10 +99,10 @@ Hidden from public — only visible when an admin account is signed in.
 - **Device fingerprinting** via FingerprintJS — every banned device is blocked on every page
 - **Hardened Firestore rules** — public reads only, writes require owner or admin
 - **Content Security Policy** (CSP) meta tag restricting script/style/connect sources
-- **X-Frame-Options: DENY** — prevents clickjacking
 - **X-Content-Type-Options: nosniff** — prevents MIME-type sniffing
 - **Referrer-Policy: strict-origin-when-cross-origin**
 - **Permissions-Policy** disabling geolocation, camera, mic, payment
+- **Clickjacking protection** via GitHub Pages' HTTP `X-Frame-Options: DENY` header (CSP `frame-ancestors` is also set; both are ignored when delivered via `<meta>` so we rely on the host's HTTP header)
 - **Honeypot field** on order form — silently rejects bots
 - **Rate limiting** on order submission (60s cooldown per device) and login (5 attempts → 60s lockout)
 - **Input validation** — email/phone format, URL filtering, max-length checks

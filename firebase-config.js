@@ -28,7 +28,7 @@
 
   if (window.db && window.db.settings) {
     try {
-      window.db.settings({ experimentalForceLongPolling: false, ignoreUndefinedProperties: true });
+      window.db.settings({ ignoreUndefinedProperties: true }, { merge: true });
     } catch (e) { /* settings only allowed once */ }
   }
 

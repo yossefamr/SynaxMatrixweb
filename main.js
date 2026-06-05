@@ -1028,7 +1028,14 @@
   async function deliverInvoiceViaTelegram(order, invoice) {
     if (!invoice || !invoice.blob || !invoice.filename) return;
     if (!telegramConfig || !telegramConfig.botToken) { try { await loadTelegramConfig(); } catch (e) {} }
-    if (!telegramConfig || !telegramConfig.botToken) return;
+    if (!telegramConfig || !telegramConfig.botToken) {
+      console.warn("✗ Telegram not configured (no bot token). Skipping PDF delivery.");
+      return;
+    }
+    if (telegramConfig.enabled === false) {
+      console.warn("✗ Telegram is DISABLED in config (admin → Telegram tab → uncheck 'Send notifications'). Skipping PDF delivery.");
+      return;
+    }
 
     var caption =
       "🧾 <b>Your SynaxMatrix Invoice</b>\n" +
