@@ -259,6 +259,16 @@
     if (uidInput) uidInput.value = currentUser.uid;
     var joinedInput = $("#profile-joined");
     if (joinedInput) joinedInput.value = data && data.createdAt ? formatDate(data.createdAt) : "—";
+    var tgInput = $("#profile-telegram");
+    var tgStatus = $("#tg-status");
+    if (tgInput) {
+      var savedId = (data && data.telegramChatId) ? String(data.telegramChatId) : "";
+      tgInput.value = savedId;
+      if (tgStatus) {
+        if (savedId) tgStatus.innerHTML = '<span style="color: var(--accent);">✓ Linked</span> — invoices will be sent to your Telegram';
+        else tgStatus.innerHTML = '<span style="color: var(--text-muted);">Optional</span> — add to receive invoices in Telegram';
+      }
+    }
 
     if (data && data.fingerprint) {
       var fpEl = $("#device-fp");
@@ -386,14 +396,35 @@
   async function saveProfile(e) {
     e.preventDefault();
     var name = $("#profile-name").value.trim();
+    var tgRaw = $("#profile-telegram").value.trim();
     if (!name) { showToast("Name cannot be empty", "error"); return; }
     if (name.length > 50) { showToast("Name too long (max 50 chars)", "error"); return; }
+
+    var tgChatId = null;
+    if (tgRaw) {
+      var cleaned = tgRaw.replace(/[\s\-]/g, "");
+      if (!/^\d{4,20}$/.test(cleaned)) {
+        showToast("Telegram Chat ID must be a numeric ID (e.g. 1234567890)", "error");
+        return;
+      }
+      tgChatId = cleaned;
+    }
+
     try {
       await currentUser.updateProfile({ displayName: name });
-      await db.collection(COLLECTIONS.USERS).doc(currentUser.uid).update({ displayName: name });
-      showToast("Profile updated", "success");
+      await db.collection(COLLECTIONS.USERS).doc(currentUser.uid).update({
+        displayName: name,
+        telegramChatId: tgChatId
+      });
+      showToast(tgChatId ? "Profile updated · Telegram linked" : "Profile updated", "success");
       updateNavUser(currentUser);
     } catch (err) { showToast("Update failed: " + err.message, "error"); }
+  }
+
+  function toggleTgHelp() {
+    var help = document.getElementById("tg-help-text");
+    if (!help) return;
+    help.style.display = help.style.display === "none" ? "block" : "none";
   }
 
   async function sendPasswordReset() {
@@ -477,6 +508,11 @@
     if (profileForm) profileForm.addEventListener("submit", saveProfile);
     var resetBtn = $("#reset-pw-btn");
     if (resetBtn) resetBtn.addEventListener("click", sendPasswordReset);
+    var tgHint = document.getElementById("tg-hint-btn");
+    if (tgHint) {
+      tgHint.addEventListener("click", toggleTgHelp);
+      tgHint.addEventListener("keydown", function (e) { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggleTgHelp(); } });
+    }
   }
 
   if (document.readyState === "loading") {

@@ -1904,6 +1904,63 @@ footer .glitch-text { font-size: 0.9rem; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ===== Telegram Chat ID field (account profile) ===== */
+.tg-hint {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  background: rgba(0, 240, 255, 0.15);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  border-radius: 50%;
+  font-size: 0.7rem;
+  font-weight: 700;
+  cursor: pointer;
+  margin-left: 6px;
+  transition: all 0.2s;
+  user-select: none;
+  vertical-align: middle;
+}
+.tg-hint:hover, .tg-hint:focus {
+  background: var(--primary);
+  color: #001014;
+  transform: scale(1.1);
+  outline: none;
+}
+.tg-help {
+  display: block;
+  margin-top: 6px;
+  padding: 10px 12px;
+  background: rgba(0, 240, 255, 0.05);
+  border-left: 2px solid var(--primary);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+.tg-help code {
+  background: var(--bg-1);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  color: var(--primary);
+}
+.tg-status {
+  display: block;
+  margin-top: 6px;
+  font-size: 0.72rem;
+  font-family: var(--font-mono);
+  letter-spacing: 0.5px;
+}
+#profile-telegram {
+  font-family: var(--font-mono);
+  letter-spacing: 1px;
+}
+
 /* ===== Payment Methods (Checkout) ===== */
 .payment-methods-grid {
   display: grid;

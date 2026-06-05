@@ -84,6 +84,18 @@
               <label>Member Since</label>
               <input type="text" id="profile-joined" disabled style="opacity: 0.6; cursor: not-allowed;" />
             </div>
+            <div class="form-group">
+              <label for="profile-telegram">
+                Telegram Chat ID
+                <span class="tg-hint" id="tg-hint-btn" role="button" tabindex="0" title="How to find your Chat ID">ℹ</span>
+              </label>
+              <input type="text" id="profile-telegram" inputmode="numeric" pattern="[0-9\-]*" placeholder="e.g. 1234567890" autocomplete="off" />
+              <small class="tg-help" id="tg-help-text" style="display:none">
+                Open Telegram → search for <code>@userinfobot</code> → send <code>/start</code>.
+                The bot will reply with your numeric Chat ID. Paste it here to receive invoices directly in Telegram.
+              </small>
+              <small class="tg-status" id="tg-status"></small>
+            </div>
             <button type="submit" class="btn btn-primary" style="width: 100%;">SAVE CHANGES</button>
           </form>
         </div>

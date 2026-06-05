@@ -18,6 +18,7 @@ A fully dynamic, cyber-themed web application built on Firebase with zero card /
   - Branded header (SynaxMatrix), unique Invoice ID, customer details, itemized table
   - **Payment Information section** with method, account, name, and transaction ref
   - Auto-downloads to customer's device + toast link to re-download
+  - **Delivered directly to Telegram** as a real PDF document (admin always, customer if they've linked their Chat ID in Account settings)
   - Customers can re-download any past invoice from their Account page
   - Invoice ID stored in the order, summary sent to admin via Telegram
 - **💳 Dynamic Payment Methods** (Vodafone Cash, Etisalat Cash, WE Cash, Fawry)
@@ -25,6 +26,11 @@ A fully dynamic, cyber-themed web application built on Firebase with zero card /
   - Selecting a method reveals the account number, copy button, and instructions
   - Customer enters a transaction reference that's stored with the order
   - Admin can add/edit/toggle/delete methods from the Payments tab
+- **📡 Telegram Delivery of Invoice PDF**
+  - Admin always receives the PDF in their Telegram after every order
+  - Customers who add their **Telegram Chat ID** in Account → Profile receive the PDF directly in their Telegram
+  - The PDF arrives as an actual downloadable document with a formatted caption
+  - Customers can find their Chat ID by messaging `@userinfobot` in Telegram
 
 ### 🛡️ Admin Dashboard
 Hidden from public — only visible when an admin account is signed in.
@@ -120,6 +126,7 @@ Hidden from public — only visible when an admin account is signed in.
 ### 🔔 Telegram Integration
 - Per-order Markdown notification with customer details
 - **Invoice summary** sent as **structured HTML + JSON payload** to admin (customer, service, payment method, transaction ref, total)
+- **Actual PDF document** sent via `sendDocument` API to the admin (always) and to the customer (if they've linked their Chat ID)
 - Bot token & chat ID stored in Firestore (not in client code)
 - Test button to verify bot connectivity
 
