@@ -231,7 +231,20 @@
           return (a.name || "").localeCompare(b.name || "");
         });
         renderPayments(list);
-      }, function (err) { console.warn("Payments listener error:", err); });
+        var status = document.getElementById("payments-status");
+        if (status) {
+          var enabled = list.filter(function (m) { return m.enabled === true; }).length;
+          status.className = "config-status connected";
+          status.innerHTML = '<span class="dot"></span><span><strong>' + list.length + '</strong> total · <strong style="color: var(--accent);">' + enabled + '</strong> enabled · Live in checkout</span>';
+        }
+      }, function (err) {
+        var status = document.getElementById("payments-status");
+        if (status) {
+          status.className = "config-status error";
+          status.innerHTML = '<span class="dot"></span><span>Error: ' + err.message + '</span>';
+        }
+        console.warn("Payments listener error:", err);
+      });
   }
 
   function stopListeners() {
@@ -1222,7 +1235,7 @@
     $("#add-block-btn").addEventListener("click", function () { openModal("block-form-modal"); });
     var addPayBtn = $("#add-payment-btn");
     if (addPayBtn) addPayBtn.addEventListener("click", function () { openPaymentFormModal(null); });
-    var seedPayBtn = $("#seed-payment-defaults-btn");
+    var seedPayBtn = $("#seed-payments-btn");
     if (seedPayBtn) seedPayBtn.addEventListener("click", seedPaymentDefaults);
     var payForm = $("#payment-form");
     if (payForm) payForm.addEventListener("submit", savePaymentMethod);

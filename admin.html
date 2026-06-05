@@ -392,8 +392,51 @@
             </div>
           </form>
         </div>
-      <section id="tab-system" class="tab-content" style="display:none">
-  </div>
+      </section>
+
+      <section id="tab-payments" class="tab-content" style="display:none">
+        <div class="dash-header">
+          <h1 class="dash-title">PAYMENT <span class="accent">METHODS</span></h1>
+          <div style="display:flex; gap:10px; flex-wrap: wrap;">
+            <button class="btn btn-ghost" id="seed-payments-btn">🌱 SEED DEFAULTS</button>
+            <button class="btn btn-primary" id="add-payment-btn">+ ADD METHOD</button>
+          </div>
+        </div>
+
+        <div id="payments-status" class="config-status connected" style="margin-bottom: 20px;">
+          <span class="dot"></span>
+          <span>Loading payment methods...</span>
+        </div>
+
+        <div class="table-wrap">
+          <table id="payments-table">
+            <thead>
+              <tr>
+                <th style="width: 40px;">#</th>
+                <th>Name</th>
+                <th>Account</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th style="width: 220px; text-align:right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="payments-tbody">
+              <tr><td colspan="6" style="text-align:center; padding: 30px; color: var(--text-dim);">No payment methods yet. Click <strong>🌱 SEED DEFAULTS</strong> to add the 4 standard methods, or <strong>+ ADD METHOD</strong> to create your own.</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="scanline-frame" style="padding: 18px; position: relative; margin-top: 20px; max-width: 720px;">
+          <span class="corner-clip tl"></span><span class="corner-clip tr"></span>
+          <span class="corner-clip bl"></span><span class="corner-clip br"></span>
+          <h3 style="font-family: var(--font-display); letter-spacing: 2px; margin-bottom: 8px; font-size: 0.95rem;">// ℹ HOW PAYMENT METHODS WORK</h3>
+          <p style="color: var(--text-dim); font-size: 0.85rem; line-height: 1.6; margin: 0;">
+            <strong>Enabled</strong> methods appear live in the checkout form. Customers see your account number + instructions, then enter a transaction reference when placing an order. Use <strong>SEED DEFAULTS</strong> once to add 4 Egyptian methods (Vodafone Cash, Etisalat Cash, WE Cash, Fawry), then edit each to add the real account number and enable it.
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
 
   <div id="product-form-modal" class="modal-overlay" role="dialog" aria-modal="true">
     <div class="modal">
