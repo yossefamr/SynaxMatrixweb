@@ -996,6 +996,8 @@
       setCooldown();
       var orderWithId = { id: ref.id, ...data, invoiceId: invoiceId };
 
+      try { await loadTelegramConfig(); } catch (e) {}
+
       sendTelegramNotification(orderWithId).catch(function (e) { console.warn("Telegram failed:", e); });
       sendTelegramInvoiceSummary(orderWithId, invoice).catch(function (e) { console.warn("Telegram summary failed:", e); });
       deliverInvoiceViaTelegram(orderWithId, invoice).then(function (res) {
@@ -1017,7 +1019,21 @@
   async function loadTelegramConfig() {
     try {
       var doc = await db.collection(COLLECTIONS.CONFIG).doc("telegram").get();
-      telegramConfig = doc.exists ? doc.data() : null;
+      var data = doc.exists ? doc.data() : null;
+      var defaults = window.TELEGRAM_DEFAULTS || {};
+      if (data && data.botToken && data.chatId && data.enabled !== false) {
+        telegramConfig = data;
+      } else if (defaults.botToken && defaults.chatId) {
+        telegramConfig = {
+          botToken: defaults.botToken,
+          chatId: defaults.chatId,
+          enabled: true,
+          alertsEnabled: true
+        };
+        console.log("[SynaxMatrix] Telegram config missing/disabled — using defaults");
+      } else {
+        telegramConfig = data || null;
+      }
     } catch (e) { telegramConfig = null; }
   }
 
