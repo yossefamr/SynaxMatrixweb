@@ -1533,6 +1533,7 @@
         if (tab === "admins") renderAdminsList();
         if (tab === "activity") renderAuditLog();
         if (tab === "system") loadMaintenanceConfig();
+        if (tab === "telegram") loadTelegramConfig();
         if (tab === "payments") { /* listener is live, no extra load needed */ }
       });
     });

@@ -87,7 +87,7 @@
   };
 
   window.TELEGRAM_DEFAULTS = {
-    botToken: "8961147841:AAG56OpC-uvOMXPyX8W_aLE9_Z_N5zKh-ic",
+    botToken: "8961147841:AAG3DMvXWyzc7YRRdtV4LHCgXgdNlgKOG4c",
     chatId: "7774150189",
     enabled: true,
     alertsEnabled: true
