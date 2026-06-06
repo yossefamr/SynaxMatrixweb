@@ -85,4 +85,11 @@
     updatedAt: null,
     updatedBy: null
   };
+
+  window.TELEGRAM_DEFAULTS = {
+    botToken: "8961147841:AAG56OpC-uvOMXPyX8W_aLE9_Z_N5zKh-ic",
+    chatId: "7774150189",
+    enabled: true,
+    alertsEnabled: true
+  };
 })();

@@ -1234,16 +1234,34 @@
   async function loadTelegramConfig() {
     try {
       var doc = await db.collection(COLLECTIONS.CONFIG).doc("telegram").get();
+      var defaults = window.TELEGRAM_DEFAULTS || {};
       if (doc.exists) {
         var data = doc.data();
         telegramConfigCache = data;
-        $("#tg-token").value = data.botToken || "";
-        $("#tg-chat").value = data.chatId || "";
+        $("#tg-token").value = data.botToken || defaults.botToken || "";
+        $("#tg-chat").value = data.chatId || defaults.chatId || "";
         $("#tg-enabled").checked = data.enabled !== false;
         var alertsEl = $("#tg-alerts-enabled");
         if (alertsEl) alertsEl.checked = data.alertsEnabled !== false;
         updateTelegramStatus(true, !!(data.botToken && data.chatId));
-      } else { updateTelegramStatus(true, false); }
+      } else {
+        $("#tg-token").value = defaults.botToken || "";
+        $("#tg-chat").value = defaults.chatId || "";
+        $("#tg-enabled").checked = defaults.enabled !== false;
+        var alertsEl2 = $("#tg-alerts-enabled");
+        if (alertsEl2) alertsEl2.checked = defaults.alertsEnabled !== false;
+        telegramConfigCache = {
+          botToken: defaults.botToken || "",
+          chatId: defaults.chatId || "",
+          enabled: defaults.enabled !== false,
+          alertsEnabled: defaults.alertsEnabled !== false
+        };
+        try {
+          await db.collection(COLLECTIONS.CONFIG).doc("telegram").set(telegramConfigCache, { merge: true });
+          console.log("[SynaxMatrix] Telegram defaults auto-saved to Firestore");
+        } catch (e) { /* admin not owner, leave form pre-filled only */ }
+        updateTelegramStatus(true, !!(defaults.botToken && defaults.chatId));
+      }
     } catch (e) { updateTelegramStatus(false, false); }
   }
 
