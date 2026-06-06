@@ -1299,6 +1299,40 @@
     } catch (err) { showToast("Save failed: " + err.message, "error"); }
   }
 
+  async function applyTelegramDefaults() {
+    var defaults = window.TELEGRAM_DEFAULTS;
+    if (!defaults || !defaults.botToken || !defaults.chatId) {
+      showToast("Defaults not loaded — refresh the page", "error");
+      return;
+    }
+    $("#tg-token").value = defaults.botToken;
+    $("#tg-chat").value = defaults.chatId;
+    $("#tg-enabled").checked = defaults.enabled !== false;
+    var alertsEl = $("#tg-alerts-enabled");
+    if (alertsEl) alertsEl.checked = defaults.alertsEnabled !== false;
+    try {
+      await db.collection(COLLECTIONS.CONFIG).doc("telegram").set({
+        botToken: defaults.botToken,
+        chatId: defaults.chatId,
+        enabled: defaults.enabled !== false,
+        alertsEnabled: defaults.alertsEnabled !== false,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedBy: currentUser ? currentUser.email : null
+      }, { merge: true });
+      telegramConfigCache = {
+        botToken: defaults.botToken,
+        chatId: defaults.chatId,
+        enabled: defaults.enabled !== false,
+        alertsEnabled: defaults.alertsEnabled !== false
+      };
+      logAdminEvent("telegram_apply_defaults", defaults.chatId);
+      showToast("Telegram defaults applied & saved to Firestore", "success", "DEFAULTS");
+      updateTelegramStatus(true, true);
+    } catch (err) {
+      showToast("Saved locally, but Firestore write failed: " + err.message, "error");
+    }
+  }
+
   async function testTelegram() {
     var botToken = $("#tg-token").value.trim();
     var chatId = $("#tg-chat").value.trim();
@@ -1544,6 +1578,8 @@
     $("#tg-test-btn").addEventListener("click", testTelegram);
     var tgAlertTestBtn = $("#tg-alert-test-btn");
     if (tgAlertTestBtn) tgAlertTestBtn.addEventListener("click", testAlert);
+    var tgDefaultsBtn = $("#tg-defaults-btn");
+    if (tgDefaultsBtn) tgDefaultsBtn.addEventListener("click", applyTelegramDefaults);
     var maintForm = $("#maintenance-form");
     if (maintForm) maintForm.addEventListener("submit", saveMaintenanceConfig);
 
