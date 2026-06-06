@@ -1085,40 +1085,69 @@
     var cleanName = (filename || "invoice.pdf").replace(/[^\w.\-]/g, "_");
     var hosts = [
       {
+        name: "litterbox.catbox.moe",
+        url: "https://litterbox.catbox.moe/resources/internals/api.php",
+        method: "POST",
+        build: function (b, n) {
+          var fd = new FormData();
+          fd.append("reqtype", "fileupload");
+          fd.append("time", "24h");
+          fd.append("fileToUpload", b, n);
+          return fd;
+        },
+        parse: function (t) { return { url: String(t || "").trim() }; }
+      },
+      {
+        name: "file.io",
+        url: "https://file.io",
+        method: "POST",
+        build: function (b, n) {
+          var fd = new FormData();
+          fd.append("file", b, n);
+          fd.append("expires", "1d");
+          return fd;
+        },
+        parse: function (t) {
+          try {
+            var j = JSON.parse(t);
+            if (j && j.success && j.link) return { url: j.link };
+            if (j && j.link) return { url: j.link };
+            return null;
+          } catch (e) { return null; }
+        }
+      },
+      {
         name: "0x0.st",
         url: "https://0x0.st",
+        method: "POST",
         build: function (b, n) {
           var fd = new FormData();
           fd.append("file", b, n);
           fd.append("expires", "24");
           return fd;
         },
-        parse: function (t) { return { url: t.trim() }; }
-      },
-      {
-        name: "transfer.sh",
-        url: "https://transfer.sh/" + encodeURIComponent(cleanName),
-        build: function (b) {
-          var fd = new FormData();
-          fd.append("file", b);
-          return fd;
-        },
-        parse: function (t) { return { url: t.trim() }; }
+        parse: function (t) { return { url: String(t || "").trim() }; }
       }
     ];
     for (var i = 0; i < hosts.length; i++) {
       var h = hosts[i];
       try {
-        var res = await fetch(h.url, { method: "POST", body: h.build(blob, cleanName) });
+        console.log("[SynaxMatrix] Trying upload host:", h.name);
+        var res = await fetch(h.url, { method: h.method, body: h.build(blob, cleanName) });
         if (res.ok) {
           var text = await res.text();
+          console.log("[SynaxMatrix] " + h.name + " response:", text.slice(0, 200));
           var parsed = h.parse(text);
           if (parsed && parsed.url && /^https?:\/\//.test(parsed.url)) {
+            console.log("[SynaxMatrix] ✓ Uploaded PDF to " + h.name + ":", parsed.url);
             return { ok: true, url: parsed.url, host: h.name };
           }
+          console.warn("[SynaxMatrix] " + h.name + " returned non-URL response");
+        } else {
+          console.warn("[SynaxMatrix] " + h.name + " HTTP " + res.status);
         }
       } catch (e) {
-        console.warn("Upload to " + h.name + " failed:", e && e.message);
+        console.warn("[SynaxMatrix] Upload to " + h.name + " failed:", e && e.message);
       }
     }
     return { ok: false };
