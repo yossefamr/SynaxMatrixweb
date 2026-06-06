@@ -1465,7 +1465,7 @@
         $$(".nav-item").forEach(function (n) { n.classList.remove("active"); });
         item.classList.add("active");
         var tab = item.dataset.tab;
-        ["products", "orders", "users", "admins", "blocks", "telegram", "activity", "system", "payments"].forEach(function (t) {
+        ["products", "orders", "users", "admins", "blocks", "telegram", "activity", "system", "payments", "coupons"].forEach(function (t) {
           var sec = $("#tab-" + t);
           if (sec) sec.style.display = t === tab ? "block" : "none";
         });
